@@ -1,0 +1,9 @@
+#!/bin/sh
+# Zed is updated with the image, so its own updater is turned off.
+export ZED_UPDATE_EXPLANATION="Zed is updated with X27-Linux. Run topgrade to update."
+
+# Accounts created before this image had Zed never got /etc/skel's settings.
+settings="${XDG_CONFIG_HOME:-$HOME/.config}/zed/settings.json"
+[ -e "$settings" ] || install -Dm644 /etc/skel/.config/zed/settings.json "$settings"
+
+exec /usr/lib/zed.app/bin/zed "$@"

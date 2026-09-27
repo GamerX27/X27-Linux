@@ -165,7 +165,7 @@ Everything above, plus:
 Everything in the base image, plus:
 
 - Zed editor (native, not Flatpak, so its terminal and agents run on the host;
-  updated with each weekly build)
+  updated with each weekly build). Its own updater and the sign-in button are off
 - Docker, with `docker.service` enabled. Add yourself to the `docker` group
   once, then log out and back in: `sudo usermod -aG docker $USER`
 - Netbird client and tray app, with `netbird.service` enabled

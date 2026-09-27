@@ -8,7 +8,7 @@ image-version: 44
 # Builds on x27-linux (recipe.yml): system config, Brave, VLC/Bazaar, topgrade, the CachyOS
 # kernel and cachyos-settings, and the dnf guard all come from there. build.yml builds it first.
 modules:
-  # Desktop overlay: Zed defaults for new accounts (etc/skel), the Netbird unit, and the docker group.
+  # Desktop overlay: the Zed wrapper and its default settings, the Netbird unit, and the docker group.
   - type: files
     files:
       - source: desktop
@@ -44,7 +44,8 @@ modules:
             && rpm -q netbird netbird-ui
 
   # Zed from its GitHub releases, installed natively instead of from Flathub so its terminal
-  # and agents run on the host. Updated with each weekly build; auto_update is off in etc/skel.
+  # and agents run on the host. Updated with each weekly build. /usr/bin/zed (files/desktop)
+  # is a wrapper that turns off Zed's updater and sign-in button.
   - type: containerfile
     snippets:
       - |
@@ -52,11 +53,10 @@ modules:
             && curl -fsSL -o /tmp/zed.tar.gz \
                  https://github.com/zed-industries/zed/releases/latest/download/zed-linux-x86_64.tar.gz \
             && tar -xzf /tmp/zed.tar.gz -C /usr/lib \
-            && ln -sf /usr/lib/zed.app/bin/zed /usr/bin/zed \
             && cp /usr/lib/zed.app/share/applications/dev.zed.Zed.desktop /usr/share/applications/ \
             && cp -r /usr/lib/zed.app/share/icons/hicolor /usr/share/icons/ \
             && rm -f /tmp/zed.tar.gz \
-            && test -x "$(readlink -f /usr/bin/zed)" && test -x /usr/lib/zed.app/libexec/zed-editor
+            && test -x /usr/bin/zed && test -x /usr/lib/zed.app/libexec/zed-editor
 
   # VLC and Bazaar come from the ISO (flatpak_refs/); they're listed again so rebased
   # systems still get them if this list replaces the base's.
