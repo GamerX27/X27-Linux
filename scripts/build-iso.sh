@@ -8,10 +8,11 @@ MIN_FREE_GB=20
 INSTALLER_IMAGE="ghcr.io/jasonn3/build-container-installer:v1.5.0"
 
 usage() {
-  echo "Usage: $0 [base|lts|gaming|media-pc]"
+  echo "Usage: $0 [base|lts|gaming|desktop|media-pc]"
   echo "  base      x27-linux (default)"
   echo "  lts       x27-linux-lts"
   echo "  gaming    x27-linux-gaming"
+  echo "  desktop   x27-linux-desktop"
   echo "  media-pc  x27-linux-media-pc"
 }
 
@@ -38,6 +39,7 @@ case "$TARGET" in
   base)     IMAGE="x27-linux" ;;
   lts)      IMAGE="x27-linux-lts" ;;
   gaming)   IMAGE="x27-linux-gaming" ;;
+  desktop)  IMAGE="x27-linux-desktop" ;;
   media-pc) IMAGE="x27-linux-media-pc" ;;
   *)
     echo "Unknown target: $TARGET" >&2

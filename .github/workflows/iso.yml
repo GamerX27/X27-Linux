@@ -12,6 +12,7 @@ on:
           - x27-linux
           - x27-linux-lts
           - x27-linux-gaming
+          - x27-linux-desktop
           - x27-linux-media-pc
       cleanup_only:
         description: "Skip the build; only prune superseded versions from the Internet Archive item"
@@ -33,7 +34,7 @@ jobs:
       matrix:
         image: >-
           ${{ fromJSON(inputs.cleanup_only && '["x27-linux"]'
-          || inputs.image == 'all' && '["x27-linux","x27-linux-lts","x27-linux-gaming","x27-linux-media-pc"]'
+          || inputs.image == 'all' && '["x27-linux","x27-linux-lts","x27-linux-gaming","x27-linux-desktop","x27-linux-media-pc"]'
           || format('["{0}"]', inputs.image)) }}
     permissions:
       contents: read

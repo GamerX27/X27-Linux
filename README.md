@@ -5,9 +5,10 @@ Custom Fedora Kinoite 44, built with [BlueBuild](https://blue-build.org/).
 - Base: `ghcr.io/gamerx27/x27-linux` — [recipe.yml](recipes/recipe.yml)
 - LTS kernel: `ghcr.io/gamerx27/x27-linux-lts` — [recipe-lts.yml](recipes/recipe-lts.yml)
 - Gaming: `ghcr.io/gamerx27/x27-linux-gaming` — [recipe-gaming.yml](recipes/recipe-gaming.yml), built on Base
+- Desktop: `ghcr.io/gamerx27/x27-linux-desktop` — [recipe-desktop.yml](recipes/recipe-desktop.yml), built on Base
 - Media PC: `ghcr.io/gamerx27/x27-linux-media-pc` — [recipe-media-pc.yml](recipes/recipe-media-pc.yml), built on LTS kernel
 
-Base and LTS build first; Gaming and Media PC build on top of them once they finish.
+Base and LTS build first; Gaming, Desktop, and Media PC build on top of them once they finish.
 
 ## What's in it
 
@@ -49,7 +50,8 @@ systemctl reboot
 ```
 
 Swap `x27-linux` for `x27-linux-lts` (LTS kernel), `x27-linux-gaming`
-(Steam/gaming, see below), or `x27-linux-media-pc` (media center, see below) in
+(Steam/gaming, see below), `x27-linux-desktop` (daily use, see below), or
+`x27-linux-media-pc` (media center, see below) in
 the commands above.
 
 ### Image tags
@@ -158,6 +160,22 @@ Everything above, plus:
   In Steam, set a game's launch options to `game-performance %command%` to
   use the performance power profile while it runs
 
+## Desktop variant
+
+Everything in the base image, plus:
+
+- RPM Fusion codecs (full ffmpeg, `@multimedia`) and VA-API drivers for Intel
+  and AMD GPUs
+- Zed editor (native, not Flatpak, so its terminal and agents run on the host;
+  updated with each weekly build)
+- Docker, with `docker.service` enabled. Add yourself to the `docker` group
+  once, then log out and back in: `sudo usermod -aG docker $USER`
+- Netbird client and tray app, with `netbird.service` enabled
+- GNOME Disks and Gwenview
+- Flatpaks: Vivaldi, LibreWolf, Chromium, Tor Browser Launcher, Nextcloud,
+  Cryptomator, Bitwarden, LocalSend, SyncThingy, Jellyfin Desktop, Finamp,
+  Iotas, sshPilot, Web App Hub, Mission Center
+
 ## Media PC variant
 
 Everything in the base image, plus:
@@ -195,7 +213,7 @@ connection to GHCR.
 - x86_64-v3 CPU to boot the resulting image (see [Kernel](#kernel) above)
 
 ```
-./scripts/build-iso.sh [base|lts|gaming|media-pc]
+./scripts/build-iso.sh [base|lts|gaming|desktop|media-pc]
 ```
 
 Defaults to `base` if no argument is given. Runs

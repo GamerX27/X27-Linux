@@ -31,8 +31,9 @@ on:
           - recipe-lts.yml
           - recipe-gaming.yml
           - recipe-media-pc.yml
+          - recipe-desktop.yml
 
-# Gaming builds FROM x27-linux and Media PC FROM x27-linux-lts, so each waits for its base.
+# Gaming and Desktop build FROM x27-linux and Media PC FROM x27-linux-lts, so each waits for its base.
 # A variant still runs if its base was skipped (dispatching only that variant) and then
 # builds on the last published base. PR builds don't push, so PR variants do the same.
 jobs:
@@ -72,6 +73,20 @@ jobs:
       packages: write
       id-token: write
 
+  desktop:
+    needs: main
+    if: >-
+      always() && contains(fromJSON('["success","skipped"]'), needs.main.result)
+      && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe-desktop.yml"]'), inputs.recipe))
+    uses: ./.github/workflows/build-image.yml
+    with:
+      recipe: recipe-desktop.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
   media-pc:
     needs: lts
     if: >-
@@ -91,7 +106,7 @@ jobs:
   # Runs when no image build failed; a single-recipe dispatch skips the other images, which
   # the notes then take from their last published :44.
   release:
-    needs: [main, lts, gaming, media-pc]
+    needs: [main, lts, gaming, desktop, media-pc]
     if: >-
       always() && github.event_name != 'pull_request'
       && contains(needs.*.result, 'success')

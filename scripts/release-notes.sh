@@ -20,7 +20,7 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 # name:image pairs, in the order they appear in the notes.
-IMAGES=("base:x27-linux" "lts:x27-linux-lts" "gaming:x27-linux-gaming" "media-pc:x27-linux-media-pc")
+IMAGES=("base:x27-linux" "lts:x27-linux-lts" "gaming:x27-linux-gaming" "desktop:x27-linux-desktop" "media-pc:x27-linux-media-pc")
 
 # name:package pairs for the Highlights table, each read from that image's package list.
 HIGHLIGHTS=(

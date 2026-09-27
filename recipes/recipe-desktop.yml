@@ -1,0 +1,146 @@
+# yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
+
+name: x27-linux-desktop
+description: X27-Linux (Desktop) - X27-Linux for daily use, plus RPM Fusion codecs, Zed, Docker, Netbird, and everyday Flatpak apps
+base-image: ghcr.io/gamerx27/x27-linux
+image-version: 44
+
+# Builds on x27-linux (recipe.yml): system config, Brave, VLC/Bazaar, topgrade, the CachyOS
+# kernel and cachyos-settings, and the dnf guard all come from there. build.yml builds it first.
+modules:
+  # Desktop overlay: Zed defaults for new accounts (etc/skel), the Netbird unit, and the docker group.
+  - type: files
+    files:
+      - source: desktop
+        destination: /
+
+  # libheif-ffmpeg (already installed via Fedora's updates repo) pins libheif to a version
+  # newer than RPM Fusion's libheif-freeworld supports, blocking the @multimedia group's
+  # libheif swap - removed first, guarded by `rpm -q` so it's a no-op once Fedora stops
+  # shipping it. pipewire-codec-aptx conflicts at the file level with Fedora's own
+  # pipewire-libs-extra (same .so path) - excluded from the group install.
+  # All VA-API drivers are installed, since the GPU isn't known at build time.
+  - type: containerfile
+    snippets:
+      - |
+        RUN dnf5 -y install \
+              https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+              https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm \
+            && dnf5 -y config-manager setopt fedora-cisco-openh264.enabled=1 \
+            && if rpm -q libheif-ffmpeg >/dev/null 2>&1; then dnf5 -y remove --no-autoremove libheif-ffmpeg; fi \
+            && dnf5 -y swap ffmpeg-free ffmpeg --allowerasing \
+            && dnf5 -y install @multimedia --exclude=libfdk-aac,libheif-ffmpeg,pipewire-codec-aptx,PackageKit-gstreamer-plugin --setopt="install_weak_deps=False" \
+            && dnf5 -y install intel-media-driver libva-intel-driver mesa-va-drivers-freeworld \
+            && rpm -q ffmpeg intel-media-driver libva-intel-driver mesa-va-drivers-freeworld
+
+  # Only removes the ones the base image actually has.
+  - type: containerfile
+    snippets:
+      - |
+        RUN PKGS="$(rpm -q --qf '%{NAME}\n' \
+              dragon juk elisa-player kmail kmahjongg kmines kpat kaddressbook \
+              korganizer kolourpaint kamoso neochat 2>/dev/null | grep -v ' ' || true)" \
+            && if [ -n "$PKGS" ]; then dnf5 -y remove --no-autoremove $PKGS; fi
+
+  # netbird.repo is in files/dnf/.
+  - type: dnf
+    repos:
+      files:
+        - netbird.repo
+        - https://download.docker.com/linux/fedora/docker-ce.repo
+      cleanup: true
+    install:
+      packages:
+        - gnome-disk-utility
+        - gwenview
+        - netbird
+        - netbird-ui
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-buildx-plugin
+        - docker-compose-plugin
+
+  # Zed from its GitHub releases, installed natively instead of from Flathub so its terminal
+  # and agents run on the host. Updated with each weekly build; auto_update is off in etc/skel.
+  - type: containerfile
+    snippets:
+      - |
+        RUN set -eu \
+            && curl -fsSL -o /tmp/zed.tar.gz \
+                 https://github.com/zed-industries/zed/releases/latest/download/zed-linux-x86_64.tar.gz \
+            && tar -xzf /tmp/zed.tar.gz -C /usr/lib \
+            && ln -sf /usr/lib/zed.app/bin/zed /usr/bin/zed \
+            && cp /usr/lib/zed.app/share/applications/dev.zed.Zed.desktop /usr/share/applications/ \
+            && cp -r /usr/lib/zed.app/share/icons/hicolor /usr/share/icons/ \
+            && rm -f /tmp/zed.tar.gz \
+            && zed --version
+
+  # VLC and Bazaar come from the ISO (flatpak_refs/); they're listed again so rebased
+  # systems still get them if this list replaces the base's.
+  - type: default-flatpaks@v1
+    notify: true
+    system:
+      install:
+        - org.videolan.VLC
+        - io.github.kolunmi.Bazaar
+        - com.vivaldi.Vivaldi
+        - io.gitlab.librewolf-community
+        - org.chromium.Chromium
+        - org.torproject.torbrowser-launcher
+        - com.nextcloud.desktopclient.nextcloud
+        - org.cryptomator.Cryptomator
+        - com.bitwarden.desktop
+        - org.localsend.localsend_app
+        - com.github.zocker_160.SyncThingy
+        - org.jellyfin.JellyfinDesktop
+        - com.unicornsonlsd.finamp
+        - org.gnome.World.Iotas
+        - io.github.mfat.sshpilot
+        - org.pvermeer.WebAppHub
+        - io.missioncenter.MissionCenter
+
+  - type: systemd
+    system:
+      enabled:
+        - docker.service
+        - netbird.service
+
+  # Sanity check: the base layout.js pins these, plus the desktop files added above.
+  - type: containerfile
+    snippets:
+      - |
+        RUN test -f /usr/share/applications/brave-origin.desktop \
+            && test -f /usr/share/applications/org.kde.dolphin.desktop \
+            && test -f /usr/share/applications/kitty.desktop \
+            && test -f /usr/share/applications/dev.zed.Zed.desktop \
+            && test -f /usr/share/applications/org.wails.netbird.desktop
+
+  - type: containerfile
+    snippets:
+      # VARIANT stays Kinoite: topgrade uses it to pick rpm-ostree over dnf.
+      # Set directly here, not via BlueBuild's os-release module: a value substituted into
+      # the recipe by an earlier workflow step doesn't survive blue-build's own checkout
+      # right before the build starts.
+      - |
+        RUN set -eu \
+            && BUILD_DATE="$(date -u +%Y-%m-%d)" \
+            && . /etc/os-release \
+            && sed -i --follow-symlinks -e '/^NAME=/d' -e '/^PRETTY_NAME=/d' -e '/^BUILD_ID=/d' /etc/os-release \
+            && printf 'NAME="X27-Linux"\nPRETTY_NAME="X27-Linux %s Desktop (%s)"\nBUILD_ID="%s-%s"\n' \
+                 "${VERSION_ID}" "${BUILD_DATE}" "${VERSION_ID}" "${BUILD_DATE}" >> /etc/os-release \
+            && grep -qx 'VARIANT="Kinoite"' /etc/os-release
+
+  # The dnf guard comes from the base image; the build container gets the real dnf5 through it.
+  # Re-applied only if a package update above replaced the symlink.
+  - type: containerfile
+    snippets:
+      - |
+        RUN if [ ! -L /usr/bin/dnf5 ]; then \
+              mv /usr/bin/dnf5 /usr/libexec/dnf5-real \
+              && ln -s /usr/libexec/x27-dnf-guard /usr/bin/dnf5; \
+            fi \
+            && test "$(readlink -f /usr/bin/dnf)" = /usr/libexec/x27-dnf-guard \
+            && dnf5 --version
+
+  - type: signing
