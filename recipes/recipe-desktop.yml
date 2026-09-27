@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
 
 name: x27-linux-desktop
-description: X27-Linux (Desktop) - X27-Linux for daily use, plus RPM Fusion codecs, Zed, Docker, Netbird, and everyday Flatpak apps
+description: X27-Linux (Desktop) - X27-Linux for daily use, plus Zed, Docker, Netbird, and everyday Flatpak apps
 base-image: ghcr.io/gamerx27/x27-linux
 image-version: 44
 
@@ -14,52 +14,34 @@ modules:
       - source: desktop
         destination: /
 
-  # libheif-ffmpeg (already installed via Fedora's updates repo) pins libheif to a version
-  # newer than RPM Fusion's libheif-freeworld supports, blocking the @multimedia group's
-  # libheif swap - removed first, guarded by `rpm -q` so it's a no-op once Fedora stops
-  # shipping it. pipewire-codec-aptx conflicts at the file level with Fedora's own
-  # pipewire-libs-extra (same .so path) - excluded from the group install.
-  # All VA-API drivers are installed, since the GPU isn't known at build time.
-  - type: containerfile
-    snippets:
-      - |
-        RUN dnf5 -y install \
-              https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-              https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm \
-            && dnf5 -y config-manager setopt fedora-cisco-openh264.enabled=1 \
-            && if rpm -q libheif-ffmpeg >/dev/null 2>&1; then dnf5 -y remove --no-autoremove libheif-ffmpeg; fi \
-            && dnf5 -y swap ffmpeg-free ffmpeg --allowerasing \
-            && dnf5 -y install @multimedia --exclude=libfdk-aac,libheif-ffmpeg,pipewire-codec-aptx,PackageKit-gstreamer-plugin --setopt="install_weak_deps=False" \
-            && dnf5 -y install intel-media-driver libva-intel-driver mesa-va-drivers-freeworld \
-            && rpm -q ffmpeg intel-media-driver libva-intel-driver mesa-va-drivers-freeworld
-
-  # Only removes the ones the base image actually has.
-  - type: containerfile
-    snippets:
-      - |
-        RUN PKGS="$(rpm -q --qf '%{NAME}\n' \
-              dragon juk elisa-player kmail kmahjongg kmines kpat kaddressbook \
-              korganizer kolourpaint kamoso neochat 2>/dev/null | grep -v ' ' || true)" \
-            && if [ -n "$PKGS" ]; then dnf5 -y remove --no-autoremove $PKGS; fi
-
-  # netbird.repo is in files/dnf/.
+  # System-level tools only; desktop apps come from Flathub below. GNOME Disks isn't on Flathub.
   - type: dnf
     repos:
       files:
-        - netbird.repo
         - https://download.docker.com/linux/fedora/docker-ce.repo
       cleanup: true
     install:
       packages:
         - gnome-disk-utility
-        - gwenview
-        - netbird
-        - netbird-ui
         - docker-ce
         - docker-ce-cli
         - containerd.io
         - docker-buildx-plugin
         - docker-compose-plugin
+
+  # netbird's %post runs `netbird service install/start`, which fails without a running systemd
+  # and aborts the transaction; noscripts skips it, and files/desktop ships the unit instead.
+  - type: containerfile
+    snippets:
+      - |
+        RUN set -eu \
+            && printf '%s\n' '[NetBird]' 'name=NetBird' 'baseurl=https://pkgs.netbird.io/yum/' 'enabled=1' \
+                 'gpgcheck=1' 'gpgkey=https://pkgs.netbird.io/yum/repodata/repomd.xml.key' 'repo_gpgcheck=1' \
+                 > /etc/yum.repos.d/netbird.repo \
+            && dnf5 -y install --setopt=tsflags=noscripts netbird \
+            && dnf5 -y install netbird-ui \
+            && rm /etc/yum.repos.d/netbird.repo \
+            && rpm -q netbird netbird-ui
 
   # Zed from its GitHub releases, installed natively instead of from Flathub so its terminal
   # and agents run on the host. Updated with each weekly build; auto_update is off in etc/skel.
@@ -74,7 +56,7 @@ modules:
             && cp /usr/lib/zed.app/share/applications/dev.zed.Zed.desktop /usr/share/applications/ \
             && cp -r /usr/lib/zed.app/share/icons/hicolor /usr/share/icons/ \
             && rm -f /tmp/zed.tar.gz \
-            && zed --version
+            && test -x "$(readlink -f /usr/bin/zed)" && test -x /usr/lib/zed.app/libexec/zed-editor
 
   # VLC and Bazaar come from the ISO (flatpak_refs/); they're listed again so rebased
   # systems still get them if this list replaces the base's.
@@ -99,6 +81,7 @@ modules:
         - io.github.mfat.sshpilot
         - org.pvermeer.WebAppHub
         - io.missioncenter.MissionCenter
+        - org.kde.gwenview
 
   - type: systemd
     system:

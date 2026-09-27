@@ -164,17 +164,15 @@ Everything above, plus:
 
 Everything in the base image, plus:
 
-- RPM Fusion codecs (full ffmpeg, `@multimedia`) and VA-API drivers for Intel
-  and AMD GPUs
 - Zed editor (native, not Flatpak, so its terminal and agents run on the host;
   updated with each weekly build)
 - Docker, with `docker.service` enabled. Add yourself to the `docker` group
   once, then log out and back in: `sudo usermod -aG docker $USER`
 - Netbird client and tray app, with `netbird.service` enabled
-- GNOME Disks and Gwenview
+- GNOME Disks
 - Flatpaks: Vivaldi, LibreWolf, Chromium, Tor Browser Launcher, Nextcloud,
   Cryptomator, Bitwarden, LocalSend, SyncThingy, Jellyfin Desktop, Finamp,
-  Iotas, sshPilot, Web App Hub, Mission Center
+  Iotas, sshPilot, Web App Hub, Mission Center, Gwenview
 
 ## Media PC variant
 
