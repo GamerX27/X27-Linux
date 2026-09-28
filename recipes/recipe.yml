@@ -35,7 +35,6 @@ modules:
         - papirus-icon-theme
         - pciutils
         - lm_sensors
-        - easyeffects
         - distrobox
     remove:
       packages:
@@ -67,6 +66,7 @@ modules:
         - org.kde.filelight
         - org.kde.kcharselect
         - org.kde.kfind
+        - com.github.wwmm.easyeffects
 
   - type: dnf
     repos:

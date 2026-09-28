@@ -19,7 +19,7 @@ Base and LTS build first; Gaming, Desktop, and Media PC build on top of them onc
 - VLC and Bazaar (Flatpak), Bazaar replacing Discover. The ISO carries them and
   installs them offline; rebased systems get them on first boot. Its apps show
   up in KRunner (`krunner-bazaar`).
-- Kate, KWrite, Filelight, KCharSelect, and KFind as Flatpaks instead of RPMs,
+- Kate, KWrite, Filelight, KCharSelect, KFind, and EasyEffects as Flatpaks instead of RPMs,
   installed on first boot
 - Brave, Dolphin, Konsole, and Bazaar pinned to the taskbar (new accounts only)
 - Hot corners and the shake-to-locate-cursor effect disabled (new accounts only)

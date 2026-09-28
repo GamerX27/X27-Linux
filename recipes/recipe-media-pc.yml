@@ -29,6 +29,7 @@ modules:
         - org.kde.filelight
         - org.kde.kcharselect
         - org.kde.kfind
+        - com.github.wwmm.easyeffects
         - org.jellyfin.JellyfinDesktop
         - com.unicornsonlsd.finamp
         - org.localsend.localsend_app

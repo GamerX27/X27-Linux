@@ -71,6 +71,7 @@ modules:
         - org.kde.filelight
         - org.kde.kcharselect
         - org.kde.kfind
+        - com.github.wwmm.easyeffects
         - com.vivaldi.Vivaldi
         - io.gitlab.librewolf-community
         - org.chromium.Chromium
