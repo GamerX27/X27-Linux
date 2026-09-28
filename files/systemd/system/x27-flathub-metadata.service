@@ -9,6 +9,3 @@ Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/bin/flatpak remote-modify --system --update-metadata flathub
 ExecStart=/bin/sh -c 'mkdir -p /var/lib/x27-linux && touch /var/lib/x27-linux/flathub-metadata'
-
-[Install]
-WantedBy=multi-user.target

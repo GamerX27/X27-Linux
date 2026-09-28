@@ -1,0 +1,10 @@
+[Unit]
+Description=Retry filling in the Flathub remote's metadata until it succeeds
+ConditionPathExists=!/var/lib/x27-linux/flathub-metadata
+
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=1min
+
+[Install]
+WantedBy=timers.target
