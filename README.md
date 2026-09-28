@@ -14,12 +14,14 @@ Base and LTS build first; Gaming, Desktop, and Media PC build on top of them onc
 
 - Brave (default browser), debranded with [X-Linuxtool](https://codeberg.org/X27/X-Linuxtool)
 - Removed: Firefox, KHelpCenter, Discover
-- Dark theme, Papirus icons, Fish shell, Kitty terminal, fastfetch banner
+- Dark theme, Papirus icons, Fish shell, Konsole terminal, fastfetch banner
 - fastfetch, htop, nvtop, nano, pciutils, lm_sensors, topgrade
 - VLC and Bazaar (Flatpak), Bazaar replacing Discover. The ISO carries them and
   installs them offline; rebased systems get them on first boot. Its apps show
   up in KRunner (`krunner-bazaar`).
-- Brave, Dolphin, Kitty, and Bazaar pinned to the taskbar (new accounts only)
+- Kate, KWrite, Filelight, KCharSelect, and KFind as Flatpaks instead of RPMs,
+  installed on first boot
+- Brave, Dolphin, Konsole, and Bazaar pinned to the taskbar (new accounts only)
 - Hot corners and the shake-to-locate-cursor effect disabled (new accounts only)
 - CachyOS kernel (BORE scheduler); LTS variant published separately
 - CachyOS tuning: sysctl, zram, I/O schedulers, `ntsync`, sched-ext schedulers (see [CachyOS tuning](#cachyos-tuning))
@@ -150,7 +152,7 @@ Everything above, plus:
 - Desktop animations off (animation speed set to Instant)
 - `proton-cachyos-install` — run it yourself to install or update
   [Proton-CachyOS](https://github.com/CachyOS/proton-cachyos) into Steam
-- Steam, Dolphin, Kitty, Brave, and Bazaar pinned to the taskbar (new accounts only)
+- Steam, Dolphin, Konsole, Brave, and Bazaar pinned to the taskbar (new accounts only)
 - `scx_lavd` sched-ext scheduler in Gaming mode, running by default. Switch
   with scx-manager or `scxctl switch -s <scheduler>`; turn it off with
   `sudo systemctl disable --now scx_loader`

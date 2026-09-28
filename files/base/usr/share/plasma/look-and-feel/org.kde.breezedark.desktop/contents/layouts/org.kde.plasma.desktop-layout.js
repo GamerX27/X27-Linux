@@ -27,7 +27,7 @@ kickoff.writeConfig("icon", "tux")
 //panel.addWidget("org.kde.plasma.showActivityManager")
 panel.addWidget("org.kde.plasma.pager")
 
-// X27-Linux: pins Brave, Dolphin, Kitty, and Bazaar (upstream's defaultPanel leaves this empty).
+// X27-Linux: pins Brave, Dolphin, Konsole, and Bazaar (upstream's defaultPanel leaves this empty).
 // This layout ships in the base image, so it also reaches the installer ISO
 // (bluebuild generate-iso builds only from the base image, see .github/workflows/iso.yml).
 var taskManager = panel.addWidget("org.kde.plasma.icontasks")
@@ -35,7 +35,7 @@ taskManager.currentConfigGroup = ["General"]
 taskManager.writeConfig("launchers", [
     "applications:brave-origin.desktop",
     "applications:org.kde.dolphin.desktop",
-    "applications:kitty.desktop",
+    "applications:org.kde.konsole.desktop",
     "applications:io.github.kolunmi.Bazaar.desktop"
 ])
 

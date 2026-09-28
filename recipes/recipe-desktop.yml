@@ -66,6 +66,11 @@ modules:
       install:
         - org.videolan.VLC
         - io.github.kolunmi.Bazaar
+        - org.kde.kate
+        - org.kde.kwrite
+        - org.kde.filelight
+        - org.kde.kcharselect
+        - org.kde.kfind
         - com.vivaldi.Vivaldi
         - io.gitlab.librewolf-community
         - org.chromium.Chromium
@@ -95,7 +100,7 @@ modules:
       - |
         RUN test -f /usr/share/applications/brave-origin.desktop \
             && test -f /usr/share/applications/org.kde.dolphin.desktop \
-            && test -f /usr/share/applications/kitty.desktop \
+            && test -f /usr/share/applications/org.kde.konsole.desktop \
             && test -f /usr/share/applications/dev.zed.Zed.desktop \
             && test -f /usr/share/applications/org.wails.netbird.desktop
 

@@ -110,7 +110,7 @@ modules:
       - |
         RUN test -f /usr/share/applications/steam.desktop \
             && test -f /usr/share/applications/org.kde.dolphin.desktop \
-            && test -f /usr/share/applications/kitty.desktop \
+            && test -f /usr/share/applications/org.kde.konsole.desktop \
             && test -f /usr/share/applications/brave-origin.desktop
 
   - type: containerfile
