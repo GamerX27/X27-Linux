@@ -1,11 +1,16 @@
 [Unit]
-Description=Fill in the Flathub remote's metadata from its summary
-Wants=network-online.target
-After=network-online.target
-ConditionPathExists=!/var/lib/x27-linux/flathub-metadata
+Description=Pin the Flathub remote's title and URL
+Before=display-manager.service
+ConditionPathExists=!/var/lib/x27-linux/flathub-remote
 
+# Flathub's summary carries xa.title and xa.redirect-url. The Anaconda-created remote has no
+# title, so sandboxed Bazaar sees a config change and hands the system helper a summary file
+# in its own /tmp, which the helper can't open. Marking both keys as set skips that check.
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/bin/flatpak remote-modify --system --update-metadata flathub
-ExecStart=/bin/sh -c 'mkdir -p /var/lib/x27-linux && touch /var/lib/x27-linux/flathub-metadata'
+ExecStart=/usr/bin/flatpak remote-modify --system --title=Flathub --url=https://dl.flathub.org/repo/ flathub
+ExecStart=/bin/sh -c 'mkdir -p /var/lib/x27-linux && touch /var/lib/x27-linux/flathub-remote'
+
+[Install]
+WantedBy=multi-user.target

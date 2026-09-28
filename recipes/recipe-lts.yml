@@ -92,13 +92,11 @@ modules:
   # (files/systemd/user/) nudges weekly instead. x27-install-date.service
   # (files/systemd/system/) stamps /var/lib/x27-linux/install-date on first boot only,
   # for fastfetch's OS Age - /var persists across updates, unlike /etc or /usr.
-  # x27-flathub-metadata.timer retries the Flathub metadata fill every minute until it
-  # succeeds once, since the network (often Wi-Fi after login) can be down at boot.
   - type: systemd
     system:
       enabled:
         - x27-install-date.service
-        - x27-flathub-metadata.timer
+        - x27-flathub-metadata.service
       masked:
         - bootc-fetch-apply-updates.timer
     user:
