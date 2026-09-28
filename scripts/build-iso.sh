@@ -84,9 +84,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# --network host on both containers: Docker's bridge network intermittently refused
+# connections here (Flathub, ciscobinary.openh264.org) while the host reached them fine.
 echo "Collecting Flatpaks: ${FLATPAK_REFS}"
 sudo docker pull "$IMAGE_REF"
-sudo docker run --rm --privileged --entrypoint bash \
+sudo docker run --rm --privileged --network host --entrypoint bash \
   -e FLATPAK_SYSTEM_DIR=/flatpak/flatpak \
   -e FLATPAK_TRIGGERSDIR=/flatpak/triggers \
   -e "REFS=${FLATPAK_REFS}" \
@@ -113,7 +115,7 @@ sudo docker run --rm --privileged --entrypoint bash \
 # and hangs at the end-of-install Reboot button. v1.5.0 keeps it. Same args BlueBuild passed.
 echo "Building ${ISO_NAME} from ${IMAGE_REF}"
 rm -f "${OUT_DIR}/${ISO_NAME}" "${OUT_DIR}/${ISO_NAME}-CHECKSUM"
-sudo docker run --rm --privileged \
+sudo docker run --rm --privileged --network host \
   -v "${OUT_DIR}:/build-container-installer/build" \
   -v dnf-cache:/cache/dnf/ \
   "${INSTALLER_IMAGE}" \
