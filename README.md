@@ -16,9 +16,10 @@ Base and LTS build first; Gaming, Desktop, and Media PC build on top of them onc
 - Removed: Firefox, KHelpCenter, Discover
 - Dark theme, Papirus icons, Fish shell, Konsole terminal, fastfetch banner
 - fastfetch, htop, nvtop, nano, pciutils, lm_sensors, topgrade
-- VLC and Bazaar (Flatpak), Bazaar replacing Discover. The ISO carries them and
-  installs them offline; rebased systems get them on first boot. Its apps show
-  up in KRunner (`krunner-bazaar`).
+- Bazaar replacing Discover, as an RPM from ublue-os/packages like Bazzite. Its
+  apps show up in KRunner (`krunner-bazaar`)
+- VLC (Flatpak). The ISO carries it and installs it offline; rebased systems get
+  it on first boot
 - Kate, KWrite, Filelight, KCharSelect, KFind, and EasyEffects as Flatpaks instead of RPMs,
   installed on first boot
 - Brave, Dolphin, Konsole, and Bazaar pinned to the taskbar (new accounts only)
@@ -67,7 +68,7 @@ the commands above.
 `dnf` is disabled on the installed system: the image is read-only and replaced
 on every update, so anything installed with it wouldn't stick.
 
-- Apps: Bazaar (Flatpak)
+- Apps: Bazaar
 - CLI and dev tools: `distrobox create && distrobox enter`, then use `dnf`
   inside the container
 - System packages: `sudo rpm-ostree install <package>`, then reboot

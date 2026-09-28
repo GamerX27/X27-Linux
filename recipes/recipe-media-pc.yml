@@ -16,14 +16,13 @@ modules:
       - source: media-pc
         destination: /
 
-  # VLC and Bazaar come from the ISO (flatpak_refs/); they're listed again so rebased
-  # systems still get them if this list replaces the base's.
+  # VLC comes from the ISO (flatpak_refs/); these are listed again so rebased systems still
+  # get them if this list replaces the base's. Bazaar is an RPM from the base image.
   - type: default-flatpaks@v1
     notify: true
     system:
       install:
         - org.videolan.VLC
-        - io.github.kolunmi.Bazaar
         - org.kde.kate
         - org.kde.kwrite
         - org.kde.filelight
@@ -33,6 +32,8 @@ modules:
         - org.jellyfin.JellyfinDesktop
         - com.unicornsonlsd.finamp
         - org.localsend.localsend_app
+      remove:
+        - io.github.kolunmi.Bazaar
 
   - type: containerfile
     snippets:

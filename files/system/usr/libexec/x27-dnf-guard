@@ -8,7 +8,7 @@ cat >&2 <<'MSG'
 dnf is disabled on X27-Linux. The system image is read-only and replaced on
 every update, so packages installed with dnf would not stick.
 
-  Apps:            Bazaar (Flatpak)
+  Apps:            Bazaar
   CLI/dev tools:   distrobox create && distrobox enter
   System packages: sudo rpm-ostree install <package>
   Updates:         topgrade

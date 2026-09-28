@@ -58,14 +58,13 @@ modules:
             && rm -f /tmp/zed.tar.gz \
             && test -x /usr/bin/zed && test -x /usr/lib/zed.app/libexec/zed-editor
 
-  # VLC and Bazaar come from the ISO (flatpak_refs/); they're listed again so rebased
-  # systems still get them if this list replaces the base's.
+  # VLC comes from the ISO (flatpak_refs/); these are listed again so rebased systems still
+  # get them if this list replaces the base's. Bazaar is an RPM from the base image.
   - type: default-flatpaks@v1
     notify: true
     system:
       install:
         - org.videolan.VLC
-        - io.github.kolunmi.Bazaar
         - org.kde.kate
         - org.kde.kwrite
         - org.kde.filelight
@@ -88,6 +87,8 @@ modules:
         - org.pvermeer.WebAppHub
         - io.missioncenter.MissionCenter
         - org.kde.gwenview
+      remove:
+        - io.github.kolunmi.Bazaar
 
   - type: systemd
     system:

@@ -52,21 +52,22 @@ modules:
         - plasma-discover-notifier
         - NetworkManager-config-connectivity-fedora
 
-  # Bazaar replaces Discover (removed above). The ISO embeds VLC and Bazaar (flatpak_refs/) and
-  # installs them offline; BlueBuild empties /var, so they can't ship in the image itself.
-  # This installs them on first boot for systems that rebased instead.
+  # The ISO embeds VLC (flatpak_refs/) and installs it offline; BlueBuild empties /var, so it
+  # can't ship in the image itself. This installs these on first boot for systems that rebased
+  # instead. Bazaar is an RPM now (below); the remove list uninstalls the old Flatpak.
   - type: default-flatpaks@v1
     notify: true
     system:
       install:
         - org.videolan.VLC
-        - io.github.kolunmi.Bazaar
         - org.kde.kate
         - org.kde.kwrite
         - org.kde.filelight
         - org.kde.kcharselect
         - org.kde.kfind
         - com.github.wwmm.easyeffects
+      remove:
+        - io.github.kolunmi.Bazaar
 
   - type: dnf
     repos:
@@ -77,8 +78,10 @@ modules:
       packages:
         - topgrade
 
-  # Bazaar search results in KRunner. Only this package comes from ublue-os/packages;
-  # the copr is disabled again afterwards.
+  # Bazaar replaces Discover (removed above), as an RPM like Bazzite ships it: the Flatpak runs
+  # sandboxed, where syncing the system Flathub remote fails, and could start before the network
+  # was up and stay empty. krunner-bazaar puts its search results in KRunner. Only these
+  # packages come from ublue-os/packages; the copr is disabled again afterwards.
   - type: dnf
     repos:
       copr:
@@ -86,6 +89,7 @@ modules:
       cleanup: true
     install:
       packages:
+        - bazaar
         - krunner-bazaar
 
   # Masks the base image's background auto-update timer; topgrade-reminder.timer
@@ -160,7 +164,8 @@ modules:
       - |
         RUN test -f /usr/share/applications/brave-origin.desktop \
             && test -f /usr/share/applications/org.kde.dolphin.desktop \
-            && test -f /usr/share/applications/org.kde.konsole.desktop
+            && test -f /usr/share/applications/org.kde.konsole.desktop \
+            && test -f /usr/share/applications/io.github.kolunmi.Bazaar.desktop
 
   # make_brave_great_again.sh's /etc/hosts step always fails here (buildah bind-mounts it
   # read-only during RUN) and is ignored; the policy file it writes is verified explicitly instead.
