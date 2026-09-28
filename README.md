@@ -213,7 +213,7 @@ connection to GHCR.
 - x86_64-v3 CPU to boot the resulting image (see [Kernel](#kernel) above)
 
 ```
-./scripts/build-iso.sh [base|lts|gaming|desktop|media-pc]
+./scripts/build-iso.sh [--usb] [base|lts|gaming|desktop|media-pc]
 ```
 
 Defaults to `base` if no argument is given. Runs
@@ -221,3 +221,10 @@ Defaults to `base` if no argument is given. Runs
 v1.5.0 in docker. Output goes to `iso-out/` at the repo root: `<name>.iso` and
 `<name>.iso.sha256sum`. The image pulled from GHCR is removed again when the script
 exits, unless it was already on the system.
+
+Each run first empties `iso-out/`, removing the ISOs of every image, not just the
+one being built.
+
+`--usb` writes the ISO to a USB drive after the build: it lists the USB drives,
+asks which one to use, has you type the device path (e.g. `/dev/sdb`) to confirm,
+and writes the ISO with `dd`. Everything on the drive is erased.
