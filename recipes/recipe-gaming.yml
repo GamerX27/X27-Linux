@@ -21,6 +21,13 @@ modules:
 
   # Auto-updates: the image is staged in the background and used on the next reboot, and
   # Flatpaks update daily. bootc-fetch-apply-updates.timer stays masked since it reboots.
+  # The Kinoite base masks rpm-ostreed-automatic.timer, and this module enables before it
+  # unmasks, so the unmask is its own module first.
+  - type: systemd
+    system:
+      unmasked:
+        - rpm-ostreed-automatic.timer
+
   - type: systemd
     system:
       enabled:
