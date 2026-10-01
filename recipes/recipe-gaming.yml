@@ -10,11 +10,25 @@ image-version: 44
 # kernel and cachyos-settings, and the dnf guard all come from there. build.yml builds it first.
 modules:
   # Gaming overlay: proton-cachyos-install command at /usr/bin, animations off
-  # (etc/xdg/kdeglobals), and the taskbar launcher pins over the base's.
+  # (etc/xdg/kdeglobals), and the taskbar launcher pins over the base's. auto-update sets
+  # rpm-ostreed's AutomaticUpdatePolicy to stage.
   - type: files
     files:
       - source: gaming
         destination: /
+      - source: auto-update
+        destination: /
+
+  # Auto-updates: the image is staged in the background and used on the next reboot, and
+  # Flatpaks update daily. bootc-fetch-apply-updates.timer stays masked since it reboots.
+  - type: systemd
+    system:
+      enabled:
+        - rpm-ostreed-automatic.timer
+        - x27-flatpak-update.timer
+    user:
+      disabled:
+        - topgrade-reminder.timer
 
   # Gaming extras from bieszczaders/kernel-cachyos-addons on top of the base's cachyos-settings
   # and scx-scheds: ananicy-cpp and scx-manager, with scx_loader (scx_lavd,

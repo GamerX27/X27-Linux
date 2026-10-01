@@ -8,17 +8,20 @@ MIN_FREE_GB=20
 INSTALLER_IMAGE="ghcr.io/jasonn3/build-container-installer:v1.5.0"
 
 usage() {
-  echo "Usage: $0 [--usb] [base|lts|gaming|desktop|media-pc]"
-  echo "  base      x27-linux (default)"
-  echo "  lts       x27-linux-lts"
-  echo "  gaming    x27-linux-gaming"
-  echo "  desktop   x27-linux-desktop"
-  echo "  media-pc  x27-linux-media-pc"
-  echo "  --usb     write the ISO to a USB drive after building"
+  echo "Usage: $0 [--usb] [--tag TAG] [base|lts|gaming|desktop|media-pc]"
+  echo "  base       x27-linux (default)"
+  echo "  lts        x27-linux-lts"
+  echo "  gaming     x27-linux-gaming"
+  echo "  desktop    x27-linux-desktop"
+  echo "  media-pc   x27-linux-media-pc"
+  echo "  --usb      write the ISO to a USB drive after building"
+  echo "  --tag TAG  image tag to install and follow: 44, latest, or a dated tag like"
+  echo "             20260922-44. Asks if not given; 44 without a terminal."
 }
 
 TARGET=""
 USB=0
+TAG=""
 
 # Writes $1 to a USB drive picked by the user. Erases the drive.
 burn_usb() {
@@ -86,8 +89,9 @@ burn_usb() {
   sync
   echo "Done: written to ${dev}, it can be removed now."
 }
-for arg in "$@"; do
-  case "$arg" in
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
     -h|--help)
       usage
       exit 0
@@ -95,20 +99,33 @@ for arg in "$@"; do
     --usb)
       USB=1
       ;;
+    --tag)
+      if [ "$#" -lt 2 ]; then
+        echo "--tag needs a value." >&2
+        usage >&2
+        exit 1
+      fi
+      TAG="$2"
+      shift
+      ;;
+    --tag=*)
+      TAG="${1#--tag=}"
+      ;;
     -*)
-      echo "Unknown option: $arg" >&2
+      echo "Unknown option: $1" >&2
       usage >&2
       exit 1
       ;;
     *)
       if [ -n "$TARGET" ]; then
-        echo "Unexpected extra argument: $arg" >&2
+        echo "Unexpected extra argument: $1" >&2
         usage >&2
         exit 1
       fi
-      TARGET="$arg"
+      TARGET="$1"
       ;;
   esac
+  shift
 done
 TARGET="${TARGET:-base}"
 
@@ -125,8 +142,32 @@ case "$TARGET" in
     ;;
 esac
 
+# The installed system keeps following this tag on updates.
+if [ -z "$TAG" ]; then
+  if [ -t 0 ]; then
+    echo "Image tag for ${IMAGE}:"
+    echo "  1) 44      follows Fedora 44 (default)"
+    echo "  2) latest  newest build, whatever Fedora version that is"
+    read -rp "Choose [1-2]: " choice
+    case "${choice:-1}" in
+      1|44) TAG=44 ;;
+      2|latest) TAG=latest ;;
+      *)
+        echo "Invalid choice: $choice" >&2
+        exit 1
+        ;;
+    esac
+  else
+    TAG=44
+  fi
+fi
+if ! [[ "$TAG" =~ ^[A-Za-z0-9._-]+$ ]]; then
+  echo "Invalid tag: $TAG" >&2
+  exit 1
+fi
+
 ISO_NAME="${IMAGE}.iso"
-IMAGE_REF="${REGISTRY}/${IMAGE}:latest"
+IMAGE_REF="${REGISTRY}/${IMAGE}:${TAG}"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker not found on PATH." >&2
@@ -207,7 +248,7 @@ sudo docker run --rm --privileged --network host \
   WEB_UI=false \
   "IMAGE_NAME=${IMAGE}" \
   "IMAGE_REPO=${REGISTRY}" \
-  IMAGE_TAG=latest \
+  "IMAGE_TAG=${TAG}" \
   VERSION=44 \
   FLATPAK_REMOTE_NAME=flathub \
   FLATPAK_REMOTE_URL=https://flathub.org/repo/flathub.flatpakrepo \

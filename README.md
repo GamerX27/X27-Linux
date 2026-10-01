@@ -27,7 +27,8 @@ Base and LTS build first; Gaming, Desktop, and Media PC build on top of them onc
 - CachyOS kernel (BORE scheduler); LTS variant published separately
 - CachyOS tuning: sysctl, zram, I/O schedulers, `ntsync`, sched-ext schedulers (see [CachyOS tuning](#cachyos-tuning))
 - `dnf` disabled on the installed system (see [Installing software](#installing-software))
-- Auto-updates off — update manually with `topgrade`
+- Auto-updates off — update manually with `topgrade` (Gaming and Media PC
+  update themselves, see [Auto-updates](#auto-updates))
 - `/etc/os-release` names the image and build, e.g. `X27-Linux 44 Gaming (2026-09-22)`
 
 ## Install
@@ -81,7 +82,20 @@ topgrade
 ```
 
 Updates the system image, Flatpaks, and everything else in one command.
-Nothing updates on its own — you always run this yourself.
+Nothing updates on its own — you always run this yourself. Gaming and Media PC
+are the exception:
+
+### Auto-updates
+
+Gaming and Media PC download new image builds in the background
+(`rpm-ostreed-automatic.timer`, policy `stage`) and switch to them on the next
+reboot; they never reboot by themselves. System Flatpaks update daily
+(`x27-flatpak-update.timer`). There's no weekly topgrade reminder on these two.
+To turn it off:
+
+```
+sudo systemctl disable --now rpm-ostreed-automatic.timer x27-flatpak-update.timer
+```
 
 ## First login after rebasing
 
@@ -162,6 +176,7 @@ Everything above, plus:
 - power-profiles-daemon instead of tuned-ppd, so `game-performance` works.
   In Steam, set a game's launch options to `game-performance %command%` to
   use the performance power profile while it runs
+- Updates itself, see [Auto-updates](#auto-updates)
 
 ## Desktop variant
 
@@ -185,6 +200,7 @@ Everything in the base image, plus:
 - Jellyfin Desktop and Finamp (Flatpak) for media playback
 - LocalSend (Flatpak) for quick file transfers
 - Dolphin, Jellyfin Desktop, VLC, Finamp, and Bazaar pinned to the taskbar (new accounts only)
+- Updates itself, see [Auto-updates](#auto-updates)
 
 ## Build
 
@@ -214,7 +230,7 @@ connection to GHCR.
 - x86_64-v3 CPU to boot the resulting image (see [Kernel](#kernel) above)
 
 ```
-./scripts/build-iso.sh [--usb] [base|lts|gaming|desktop|media-pc]
+./scripts/build-iso.sh [--usb] [--tag TAG] [base|lts|gaming|desktop|media-pc]
 ```
 
 Defaults to `base` if no argument is given. Runs
@@ -225,6 +241,11 @@ exits, unless it was already on the system.
 
 Each run first empties `iso-out/`, removing the ISOs of every image, not just the
 one being built.
+
+`--tag` picks the image tag the ISO installs, and the installed system keeps
+following it on updates: `44`, `latest`, or a dated tag (see [Image tags](#image-tags)).
+Without it the script asks, defaulting to `44`. The `build-iso` workflow has the
+same choice.
 
 `--usb` writes the ISO to a USB drive after the build: it lists the USB drives,
 asks which one to use, has you type the device path (e.g. `/dev/sdb`) to confirm,

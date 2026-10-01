@@ -11,10 +11,24 @@ image-version: 44
 # build.yml builds it first.
 modules:
   # Media-pc overlay: taskbar pins for Dolphin, Jellyfin Desktop, VLC, and Finamp over the base's.
+  # auto-update sets rpm-ostreed's AutomaticUpdatePolicy to stage.
   - type: files
     files:
       - source: media-pc
         destination: /
+      - source: auto-update
+        destination: /
+
+  # Auto-updates: the image is staged in the background and used on the next reboot, and
+  # Flatpaks update daily. bootc-fetch-apply-updates.timer stays masked since it reboots.
+  - type: systemd
+    system:
+      enabled:
+        - rpm-ostreed-automatic.timer
+        - x27-flatpak-update.timer
+    user:
+      disabled:
+        - topgrade-reminder.timer
 
   # VLC comes from the ISO (flatpak_refs/); these are listed again so rebased systems still
   # get them if this list replaces the base's. Bazaar is an RPM from the base image.
