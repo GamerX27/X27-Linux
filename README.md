@@ -206,6 +206,8 @@ Everything in the base image, plus:
 
 Pushes to `main` build and publish automatically via GitHub Actions, which
 also rebuilds weekly to pick up upstream Kinoite/Brave/kernel updates.
+CI runs on GitHub only; Actions is turned off on the Forgejo mirror
+(git.xlabsx27.com).
 
 ## Releases
 
