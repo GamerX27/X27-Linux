@@ -36,9 +36,13 @@ on:
 # Gaming and Desktop build FROM x27-linux and Media PC FROM x27-linux-lts, so each waits for its base.
 # A variant still runs if its base was skipped (dispatching only that variant) and then
 # builds on the last published base. PR builds don't push, so PR variants do the same.
+# Every job is gated on github.server_url so the Forgejo mirror (git.xlabsx27.com), whose
+# Actions also read .github/workflows, skips them; they only run on GitHub.
 jobs:
   main:
-    if: github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe.yml"]'), inputs.recipe)
+    if: >-
+      github.server_url == 'https://github.com'
+      && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe.yml"]'), inputs.recipe))
     uses: ./.github/workflows/build-image.yml
     with:
       recipe: recipe.yml
@@ -49,7 +53,9 @@ jobs:
       id-token: write
 
   lts:
-    if: github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe-lts.yml"]'), inputs.recipe)
+    if: >-
+      github.server_url == 'https://github.com'
+      && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe-lts.yml"]'), inputs.recipe))
     uses: ./.github/workflows/build-image.yml
     with:
       recipe: recipe-lts.yml
@@ -62,7 +68,7 @@ jobs:
   gaming:
     needs: main
     if: >-
-      always() && contains(fromJSON('["success","skipped"]'), needs.main.result)
+      always() && github.server_url == 'https://github.com' && contains(fromJSON('["success","skipped"]'), needs.main.result)
       && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe-gaming.yml"]'), inputs.recipe))
     uses: ./.github/workflows/build-image.yml
     with:
@@ -76,7 +82,7 @@ jobs:
   desktop:
     needs: main
     if: >-
-      always() && contains(fromJSON('["success","skipped"]'), needs.main.result)
+      always() && github.server_url == 'https://github.com' && contains(fromJSON('["success","skipped"]'), needs.main.result)
       && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe-desktop.yml"]'), inputs.recipe))
     uses: ./.github/workflows/build-image.yml
     with:
@@ -90,7 +96,7 @@ jobs:
   media-pc:
     needs: lts
     if: >-
-      always() && contains(fromJSON('["success","skipped"]'), needs.lts.result)
+      always() && github.server_url == 'https://github.com' && contains(fromJSON('["success","skipped"]'), needs.lts.result)
       && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe-media-pc.yml"]'), inputs.recipe))
     uses: ./.github/workflows/build-image.yml
     with:
@@ -108,7 +114,7 @@ jobs:
   release:
     needs: [main, lts, gaming, desktop, media-pc]
     if: >-
-      always() && github.event_name != 'pull_request'
+      always() && github.server_url == 'https://github.com' && github.event_name != 'pull_request'
       && contains(needs.*.result, 'success')
       && !contains(needs.*.result, 'failure')
       && !contains(needs.*.result, 'cancelled')
