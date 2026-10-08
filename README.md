@@ -22,6 +22,9 @@ Base and LTS build first; Gaming, Desktop, and Media PC build on top of them onc
   it on first boot
 - Kate, KWrite, Filelight, KCharSelect, KFind, and EasyEffects as Flatpaks instead of RPMs,
   installed on first boot
+- Full codecs (ffmpeg, x264/x265, fdk-aac) and hardware video decode/encode on AMD
+  and Intel (Mesa VA-API/Vulkan with H.264/HEVC/AV1, Intel media driver), from the
+  negativo17 multimedia packages in the BlueBuild base image. Check with `vainfo`
 - Brave, Dolphin, Konsole, and Bazaar pinned to the taskbar (new accounts only)
 - Hot corners and the shake-to-locate-cursor effect disabled (new accounts only)
 - CachyOS kernel (BORE scheduler); LTS variant published separately
@@ -163,7 +166,8 @@ Everything above, plus:
 
 - Steam, GameMode, Gamescope, MangoHud, GOverlay
 - Faugus Launcher, Heroic Games Launcher (latest GitHub release, updated with each weekly build)
-- RPM Fusion codecs and freeworld Mesa VA-API/Vulkan drivers
+- Full GStreamer codecs (bad, ugly, openh264) on top of the base image's codecs,
+  and 32-bit Mesa/libva matching the 64-bit drivers, all from negativo17
 - Desktop animations off (animation speed set to Instant)
 - `proton-cachyos-install` — run it yourself to install or update
   [Proton-CachyOS](https://github.com/CachyOS/proton-cachyos) into Steam
