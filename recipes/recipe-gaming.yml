@@ -2,7 +2,7 @@
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
 
 name: x27-linux-gaming
-description: X27-Linux (Gaming) - X27-Linux plus Steam, Faugus, Heroic, RPM Fusion codecs, and RPM Fusion's freeworld Mesa VA-API/Vulkan drivers
+description: X27-Linux (Gaming) - X27-Linux plus Steam, Faugus, Heroic, and full GStreamer codecs, on the base image's full codecs and VA-API/Vulkan drivers
 base-image: ghcr.io/gamerx27/x27-linux
 image-version: 44
 
@@ -52,27 +52,36 @@ modules:
             && command -v powerprofilesctl \
             && systemctl enable scx_loader.service ananicy-cpp.service power-profiles-daemon.service
 
-  # Fedora's own updates repo ships a unified libfdk-aac (Obsoletes fdk-aac/fdk-aac-free,
-  # x86_64 only) that's already installed before this module runs, blocking the i686
-  # fdk-aac-free build steam.i686 needs (pipewire-alsa -> libfdk-aac.so.2 chain). Swap the
-  # installed package for the patent-safe fdk-aac-free first, then add the i686 build
-  # explicitly, before steam can pull in pipewire's i686 deps. Guarded by `rpm -q` so it's
-  # a no-op once Fedora stops shipping libfdk-aac by default. Needs a containerfile RUN
-  # since the declarative dnf module has no swap/exclude support.
+  # The base image's codecs and Mesa (VA-API with H.264/HEVC/AV1, Vulkan, full Intel media
+  # driver, ffmpeg, libfdk-aac) come from negativo17's fedora-multimedia repo, which the
+  # BlueBuild base image removes again after installing them. Steam needs i686 builds of
+  # Mesa, libva, and libfdk-aac at the exact same versions, so the repo is added back here:
+  # without it dnf takes Fedora's i686 builds and downgrades the x86_64 ones to match.
+  # negativo17 also ships Steam itself and the full GStreamer bad/ugly plugins; --allowerasing
+  # lets those replace Fedora's -free builds. Both repo files are removed again at the end.
   - type: containerfile
     snippets:
       - |
-        RUN dnf5 -y install \
-              https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-              https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm \
-            && if rpm -q libfdk-aac >/dev/null 2>&1; then dnf5 -y swap libfdk-aac fdk-aac-free; fi \
-            && dnf5 -y install --skip-unavailable --exclude=libfdk-aac fdk-aac-free.i686 \
+        RUN set -eu \
+            && curl -fsSL -o /etc/yum.repos.d/negativo17-fedora-multimedia.repo \
+                 https://negativo17.org/repos/fedora-multimedia.repo \
+            && curl -fsSL -o /etc/yum.repos.d/negativo17-fedora-steam.repo \
+                 https://negativo17.org/repos/fedora-steam.repo \
+            && dnf5 -y config-manager setopt fedora-cisco-openh264.enabled=1 \
             && dnf5 -y copr enable faugus/faugus-launcher \
-            && dnf5 -y install --skip-unavailable --exclude=libfdk-aac \
+            && dnf5 -y install --allowerasing \
                  steam steam-devices gamemode gamescope mangohud goverlay \
                  faugus-launcher \
-                 mesa-vulkan-drivers mesa-vulkan-drivers.i686 vulkan-loader vulkan-tools amd-gpu-firmware \
-            && dnf5 -y copr disable faugus/faugus-launcher
+                 mesa-dri-drivers.i686 mesa-vulkan-drivers.i686 \
+                 gstreamer1-plugins-bad gstreamer1-plugins-ugly gstreamer1-plugin-openh264 \
+            && dnf5 -y copr disable faugus/faugus-launcher \
+            && rm /etc/yum.repos.d/negativo17-fedora-multimedia.repo /etc/yum.repos.d/negativo17-fedora-steam.repo \
+            && ! rpm -qa | grep -q -e '^rpmfusion-' -e '-freeworld-' \
+            && rpm -q steam faugus-launcher libfdk-aac libavcodec gstreamer1-plugins-bad gstreamer1-plugins-ugly \
+            && rpm -q --qf '%{NAME} %{EPOCH}:%{VERSION}-%{RELEASE}.%{ARCH}\n' mesa-dri-drivers mesa-vulkan-drivers libva \
+            && test "$(rpm -q --qf '%{ARCH}\n' mesa-dri-drivers mesa-vulkan-drivers | sort -u | tr '\n' ' ')" = "i686 x86_64 " \
+            && test "$(rpm -q --qf '%{EPOCH}:%{VERSION}-%{RELEASE}\n' mesa-dri-drivers mesa-vulkan-drivers | sort -u | wc -l)" -eq 1 \
+            && test "$(rpm -q --qf '%{EPOCH}\n' mesa-dri-drivers mesa-vulkan-drivers libva | sort -u)" = 1
 
   # Heroic from its GitHub releases (the atim COPR stopped updating), checked against the sha512
   # in latest-linux.yml. The RPM installs to /opt, which is /var/opt on bootc and never updated
@@ -100,30 +109,6 @@ modules:
             && test -x "$(readlink -f /usr/bin/heroic)" \
             && grep -q '^Exec=/usr/lib/heroic/heroic' /usr/share/applications/heroic.desktop \
             && echo "Heroic ${VER}"
-
-  # libheif-ffmpeg (already installed via Fedora's updates repo) pins libheif to a version
-  # newer than RPM Fusion's libheif-freeworld supports, blocking the @multimedia group's
-  # libheif swap - removed first, guarded by `rpm -q` so it's a no-op once Fedora stops
-  # shipping it. pipewire-codec-aptx conflicts at the file level with Fedora's own
-  # pipewire-libs-extra (same .so path) - excluded from the group install.
-  - type: containerfile
-    snippets:
-      - |
-        RUN dnf5 -y config-manager setopt fedora-cisco-openh264.enabled=1 \
-            && if rpm -q libheif-ffmpeg >/dev/null 2>&1; then dnf5 -y remove --no-autoremove libheif-ffmpeg; fi \
-            && dnf5 -y swap ffmpeg-free ffmpeg --allowerasing \
-            && dnf5 -y install @multimedia --exclude=libfdk-aac,libheif-ffmpeg,pipewire-codec-aptx,PackageKit-gstreamer-plugin --setopt="install_weak_deps=False"
-
-  # Prebuilt RPM Fusion swap, not a from-source Mesa build - that hit Fedora's mesa.spec
-  # needing dynamic Rust/cargo BuildRequires that plain rpmbuild outside mock can't resolve.
-  - type: containerfile
-    snippets:
-      - |
-        RUN dnf5 -y install mesa-va-drivers-freeworld \
-            && dnf5 -y swap mesa-vulkan-drivers mesa-vulkan-drivers-freeworld \
-            && dnf5 -y install mesa-va-drivers-freeworld.i686 \
-            && dnf5 -y swap mesa-vulkan-drivers.i686 mesa-vulkan-drivers-freeworld.i686 \
-            && rpm -q mesa-va-drivers-freeworld mesa-vulkan-drivers-freeworld
 
   # Sanity check: files/gaming's layout.js pins these desktop files in the taskbar.
   - type: containerfile
