@@ -17,23 +17,40 @@ TV remote or keyboard. Apps open fullscreen on top, and Home brings you back.
 - **All Apps**: every installed desktop app in a grid
 - Missing Flatpaks show a **Get** badge, and pressing OK installs them from Flathub
 
-## Requirements
-
-```
-sudo dnf install labwc wlrctl wlr-randr swayidle python3-pyside6 python3-evdev
-flatpak install flathub rocks.shy.VacuumTube org.jellyfin.JellyfinDesktop com.unicornsonlsd.finamp org.videolan.VLC org.localsend.localsend_app
-```
-
-On Fedora Atomic, use `rpm-ostree install` for the first line and reboot.
-
 ## Install
 
 ```
-sudo ./install.sh            # installs to /usr/local and adds the "X27 TV" session
+sudo ./install.sh              # packages + x27-tv + "X27 TV" session (+ SDDM if no login screen yet)
+sudo ./install.sh --autologin  # also boots straight into X27 TV (great for a test VM)
+sudo ./install.sh --sddm       # switch an existing GDM/Plasma login screen to SDDM
+sudo ./install.sh --no-deps    # only copy the launcher files
 sudo ./install.sh --uninstall
 ```
 
-Log out and pick **X27 TV** on the login screen.
+The installer pulls in everything a minimal Fedora install needs: labwc, wlrctl, wlr-randr,
+swayidle, PySide6 with Qt Wayland/SVG, PipeWire, NetworkManager, BlueZ, Flatpak
+(adding Flathub), Mesa, Inter and Papirus. If no display manager is enabled (a fresh
+VM or server install), it installs SDDM with its Wayland greeter and enables it. An
+existing login screen is left alone unless you pass `--sddm`. On Fedora Atomic, packages
+are layered with rpm-ostree, so reboot and run it once more to finish the SDDM step.
+
+The apps on the home row are Flatpaks, and the launcher offers to install missing ones
+(**Get** badge). You can also install them up front:
+
+```
+flatpak install flathub rocks.shy.VacuumTube org.jellyfin.JellyfinDesktop com.unicornsonlsd.finamp org.videolan.VLC org.localsend.localsend_app
+```
+
+Reboot, or log out, and pick **X27 TV** on the login screen.
+
+### Testing in a VM
+
+1. Install Fedora 44 (Server or Everything netinstall with a minimal install is enough).
+2. `sudo dnf install -y git && git clone https://git.xlabsx27.com/X27/X27-TV.git && cd X27-TV`
+3. `sudo ./install.sh --autologin && sudo reboot`
+
+Enable 3D acceleration for the VM (virtio-gpu with GL, or VMware SVGA) so the blur
+effects render smoothly.
 
 ## Try it without logging out
 
