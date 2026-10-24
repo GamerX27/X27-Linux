@@ -1,0 +1,14 @@
+#%PAM-1.0
+# PAM stack for the x27-tv kiosk service: no password prompt (the service is the autologin),
+# otherwise the same session setup as a console login, incl. pam_selinux so the session runs
+# in the normal user SELinux context (Flatpak's sandbox fails without it).
+auth       required    pam_permit.so
+account    required    pam_nologin.so
+account    include     system-auth
+session    required    pam_selinux.so close
+session    required    pam_loginuid.so
+session    required    pam_selinux.so open
+session    required    pam_namespace.so
+session    optional    pam_keyinit.so force revoke
+session    include     system-auth
+session    include     postlogin

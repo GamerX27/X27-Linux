@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=X27 TV
+Comment=Apple TV style launcher for the living room
+Exec=/usr/local/bin/x27-tv-session
+Type=Application
+DesktopNames=x27-tv;wlroots

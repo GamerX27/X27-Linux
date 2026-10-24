@@ -1,0 +1,5 @@
+#!/bin/sh
+# Runs the x27-tv launcher from wherever this script really lives (repo or install dir).
+X27TV_HOME="${X27TV_HOME:-$(dirname "$(dirname "$(readlink -f "$0")")")}"
+export X27TV_HOME
+PYTHONPATH="$X27TV_HOME${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m x27tv "$@"
