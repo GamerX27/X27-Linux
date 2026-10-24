@@ -1,6 +1,6 @@
 # X27 TV kiosk session: logs @USER@ straight into X27 TV on tty1 at boot, no display
-# manager. Restarts on crashes (giving up after 5 in a minute, back to the console with the
-# error on screen); a clean exit (Exit in the Control Center) returns to the console too.
+# manager. Restarts on crashes (giving up after 5 in a minute and falling back to the
+# tty1 login); a clean exit (Exit in the Control Center) returns to the console too.
 [Unit]
 Description=X27 TV session
 After=systemd-user-sessions.service plymouth-quit-wait.service dbus.socket systemd-logind.service getty@tty1.service
@@ -21,7 +21,7 @@ TTYVHangup=yes
 TTYVTDisallocate=yes
 StandardInput=tty-fail
 StandardOutput=journal
-StandardError=journal+console
+StandardError=journal
 UtmpIdentifier=tty1
 UtmpMode=user
 Environment=XDG_SESSION_TYPE=wayland XDG_SESSION_CLASS=user XDG_SEAT=seat0 XDG_VTNR=1
