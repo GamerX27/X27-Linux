@@ -214,8 +214,9 @@ the image from there, so a change to it rebuilds the images like one to `recipes
 - Boots straight into X27 TV: the first normal user (the account made during install) is
   logged in on tty1, with no display manager. Without such an account, tty1 shows the
   normal text login. **Exit to Console** in the Control Center goes to that login too
-- Home row: VacuumTube, Jellyfin Desktop, Finamp, VLC, LocalSend (Flatpaks, installed on
-  first boot), plus Patreon, Odysee, and Brave. Customize it in
+- Home row: VacuumTube, Jellyfin Desktop, Finamp, VLC, LocalSend (Flatpaks; the ISO
+  carries and installs all five offline, from `flatpak_refs-media-pc/`, and rebased systems
+  get any missing ones on first boot), plus Patreon, Odysee, and Brave. Customize it in
   `~/.config/x27-tv/apps.toml` (copy `/usr/share/x27-tv/config/apps.toml`)
 - Logs: `journalctl -u x27-tv` for the session, `~/.cache/x27-tv/logs/` per app
 - Also from the base image: Brave, fish, fastfetch, htop, nvtop, nano, distrobox,

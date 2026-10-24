@@ -74,8 +74,9 @@ modules:
       packages:
         - NetworkManager-config-connectivity-fedora
 
-  # The home row apps in X27 TV's config/apps.toml. VLC comes from the ISO (flatpak_refs/);
-  # the rest install on first boot. No notification: there is no notification daemon in labwc.
+  # The home row apps in X27 TV's config/apps.toml. The ISO carries all of them
+  # (flatpak_refs-media-pc/) and installs them offline; this installs any that are missing
+  # (rebased systems) on first boot. No notification: there is no notification daemon in labwc.
   - type: default-flatpaks@v1
     notify: false
     system:
