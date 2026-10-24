@@ -8,6 +8,8 @@ from pathlib import Path
 
 from PySide6.QtCore import Property, QObject, QProcess, QTimer, Signal, Slot
 
+from .apps import resolve_icon
+
 SELF_ID = "x27-tv"
 FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
 LOG_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "x27-tv/logs"
@@ -38,6 +40,7 @@ class Launcher(QObject):
         super().__init__()
         self.store = store
         self._running = []
+        self._windows = []
         self._installing = []
         self._poll = None
         if shutil.which("wlrctl"):
@@ -48,6 +51,10 @@ class Launcher(QObject):
     @Property("QVariantList", notify=runningChanged)
     def running(self):
         return self._running
+
+    @Property("QVariantList", notify=runningChanged)
+    def windows(self):
+        return self._windows
 
     @Property("QVariantList", notify=installingChanged)
     def installing(self):
@@ -64,10 +71,36 @@ class Launcher(QObject):
         out = bytes(self._poll.readAllStandardOutput()).decode(errors="replace")
         self._poll.deleteLater()
         self._poll = None
-        ids = sorted({line.split(":", 1)[0].strip() for line in out.splitlines() if ":" in line} - {SELF_ID})
-        if ids != self._running:
+        titles = {}
+        for line in out.splitlines():
+            app_id, sep, title = line.partition(":")
+            app_id = app_id.strip()
+            if sep and app_id and app_id != SELF_ID:
+                titles.setdefault(app_id, title.strip())
+        ids = sorted(titles)
+        order = [w["appId"] for w in self._windows if w["appId"] in titles]
+        order += [i for i in titles if i not in order]
+        windows = [self._describe(i, titles[i]) for i in order]
+        if ids != self._running or windows != self._windows:
             self._running = ids
+            self._windows = windows
             self.runningChanged.emit()
+
+    def _describe(self, app_id, title):
+        e = next((a for a in self.store.apps + self.store.allApps if a.get("appId") == app_id), None)
+        if e:
+            return {"appId": app_id, "title": title, "name": e["name"], "icon": e["icon"]}
+        return {"appId": app_id, "title": title, "name": title or app_id, "icon": resolve_icon(app_id)}
+
+    @Slot(str)
+    def focusApp(self, app_id):
+        wlrctl("focus", f"app_id:{app_id}")
+
+    @Slot(str)
+    def closeApp(self, app_id):
+        wlrctl("close", f"app_id:{app_id}")
+        QTimer.singleShot(400, self._poll_running)
+        QTimer.singleShot(1500, self._poll_running)
 
     @Slot(str)
     def launch(self, key):

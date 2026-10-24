@@ -125,8 +125,9 @@ Window {
             id: row
             anchors { left: parent.left; right: parent.right }
             readonly property bool lowered: root.mode === "shelf" || root.mode === "top"
-            y: lowered ? parent.height - height * 0.42 : parent.height - height - 70 * Theme.s
-            opacity: lowered ? 0.45 : 1
+            y: lowered ? parent.height - height * 0.42
+                       : parent.height - height - (taskbar.items.length ? taskbar.height + 10 * Theme.s : 70 * Theme.s)
+            opacity: lowered ? 0.45 : root.mode === "task" ? 0.6 : 1
             model: root.apps
             currentIndex: root.current
             active: root.mode === "row"
@@ -134,6 +135,14 @@ Window {
             Behavior on opacity { NumberAnimation { duration: Theme.med } }
             onHoveredIndex: (i) => { if (root.mode === "row") root.current = i }
             onLaunchRequested: (i) => { root.current = i; root.launchCurrent() }
+        }
+
+        Taskbar {
+            id: taskbar
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+            items: Launcher.windows
+            active: root.mode === "task"
+            onExitUp: root.mode = "row"
         }
     }
 
@@ -163,9 +172,16 @@ Window {
                 else if (k === Qt.Key_PageUp || k === Qt.Key_Home) root.current = 0
                 else if (k === Qt.Key_PageDown || k === Qt.Key_End) root.current = root.apps.length - 1
                 else if (k === Qt.Key_Up) root.mode = "shelf"
-                else if (k === Qt.Key_Down) { const t = row.currentTile(); if (t) t.nudge(0, 1) }
+                else if (k === Qt.Key_Down) {
+                    if (taskbar.items.length) { taskbar.reset(); root.mode = "task" }
+                    else { const t = row.currentTile(); if (t) t.nudge(0, 1) }
+                }
+                else if (k === Qt.Key_Delete && Launcher.running.indexOf(root.focused.appId) >= 0) Launcher.closeApp(root.focused.appId)
                 else if (ok) root.launchCurrent()
                 else return
+                break
+            case "task":
+                if (!taskbar.handleKey(e)) return
                 break
             case "shelf":
                 if (k === Qt.Key_Down || back) root.mode = "row"

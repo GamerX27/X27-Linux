@@ -1,4 +1,4 @@
-# Gamepad input via evdev, with hotplug and key repeat. D-pad/stick/A/B/Start are turned
+# Gamepad input via evdev, with hotplug and key repeat. D-pad/stick/A/B/X/Y/Start are turned
 # into Qt keys for the launcher, and the Guide button acts as a global Home.
 
 import select
@@ -15,6 +15,8 @@ except ImportError:
 BUTTONS = {
     "BTN_SOUTH": Qt.Key_Return,
     "BTN_EAST": Qt.Key_Escape,
+    "BTN_WEST": Qt.Key_Delete,
+    "BTN_NORTH": Qt.Key_Delete,
     "BTN_START": Qt.Key_Menu,
     "BTN_SELECT": Qt.Key_Menu,
     "BTN_TL": Qt.Key_PageUp,

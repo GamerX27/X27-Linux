@@ -14,6 +14,7 @@ TV remote or keyboard. Apps open fullscreen on top, and Home brings you back.
   with a 15-second keep-or-revert), Network (Wi-Fi with an on-screen keyboard for
   passwords), Bluetooth (pair controllers, headphones and remotes), Home Screen (reorder
   and hide apps), Power (screen-off and auto-sleep timers), System (device info, restart)
+- **Taskbar**: running apps along the bottom of the home screen. Switch to one or close it
 - **All Apps**: every installed desktop app in a grid
 - Missing Flatpaks show a **Get** badge, and pressing OK installs them from Flathub
 
@@ -76,9 +77,12 @@ X27TV_HOME=$PWD labwc -C session/labwc         # the full session, nested in a w
 | Back | B | Back / Esc |
 | Control Center | Start / Select | Menu / F1 |
 | First / last app | LB / RB | Page Up / Page Down |
+| Close app (taskbar or tile) | X / Y | Delete / X |
 | Home (works from any app) | Guide | Home / Super |
 
 Up from the row expands the Top Shelf. Press Up again to reach the Control Center button.
+Down from the row moves to the taskbar (shown while apps are running). OK on an app there
+opens **Open / Close**, and X closes it directly.
 
 In Settings: Up/Down moves, Right/OK opens a section, ‹ › changes values, and Back goes
 back. On Home Screen, OK picks an app up, Up/Down moves it, and OK puts it down.
