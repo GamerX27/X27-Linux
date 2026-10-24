@@ -22,14 +22,16 @@ TV remote or keyboard. Apps open fullscreen on top, and Home brings you back.
 ```
 sudo ./install.sh              # packages + x27-tv + "X27 TV" session (+ SDDM if no login screen yet)
 sudo ./install.sh --autologin  # also boots straight into X27 TV (great for a test VM)
+sudo ./install.sh --apps       # also installs the home row Flatpaks system-wide
 sudo ./install.sh --sddm       # switch an existing GDM/Plasma login screen to SDDM
 sudo ./install.sh --no-deps    # only copy the launcher files
 sudo ./install.sh --uninstall
 ```
 
 The installer pulls in everything a minimal Fedora install needs: labwc, wlrctl, wlr-randr,
-swayidle, PySide6 with Qt Wayland/SVG, PipeWire, NetworkManager, BlueZ, Flatpak
-(adding Flathub), Mesa, Inter and Papirus. If no display manager is enabled (a fresh
+swayidle, Python + PySide6 with Qt Wayland/SVG, PipeWire, NetworkManager, BlueZ, polkit,
+Flatpak (adding Flathub), Mesa, Inter, Papirus, and Brave from Brave's own repository
+(used for the browser and the web shortcuts). If no display manager is enabled (a fresh
 VM or server install), it installs SDDM with its Wayland greeter and enables it. An
 existing login screen is left alone unless you pass `--sddm`. On Fedora Atomic, packages
 are layered with rpm-ostree, so reboot and run it once more to finish the SDDM step.
@@ -43,11 +45,20 @@ flatpak install flathub rocks.shy.VacuumTube org.jellyfin.JellyfinDesktop com.un
 
 Reboot, or log out, and pick **X27 TV** on the login screen.
 
-### Testing in a VM
+### Testing in a VM (from a CLI-only Fedora)
 
-1. Install Fedora 44 (Server or Everything netinstall with a minimal install is enough).
-2. `sudo dnf install -y git && git clone https://git.xlabsx27.com/X27/X27-TV.git && cd X27-TV`
-3. `sudo ./install.sh --autologin && sudo reboot`
+1. Install Fedora 44 Server, or Everything with "Minimal Install", with no desktop.
+   Create a normal user with admin (sudo) rights during setup.
+2. Log in on the console as that user:
+   ```
+   sudo dnf install -y git
+   git clone https://git.xlabsx27.com/X27/X27-TV.git && cd X27-TV
+   sudo ./install.sh --autologin --apps
+   sudo reboot
+   ```
+3. The VM boots into SDDM, logs straight into X27 TV, and the home row apps are ready.
+   **Exit to Login** in the Control Center drops to the SDDM login screen, and the console
+   is still on Ctrl+Alt+F3.
 
 Enable 3D acceleration for the VM (virtio-gpu with GL, or VMware SVGA) so the blur
 effects render smoothly.

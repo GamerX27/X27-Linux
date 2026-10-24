@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installs x27-tv to /usr/local with its dependencies and registers the "X27 TV" Wayland
-# session. Sets up SDDM when no display manager is active (e.g. a fresh VM).
-# Usage: sudo ./install.sh [--sddm] [--autologin] [--no-deps] | --uninstall
+# session. Works from a CLI-only Fedora: sets up SDDM when no display manager is active.
+# Usage: sudo ./install.sh [--autologin] [--apps] [--sddm] [--no-deps] | --uninstall
 
 set -euo pipefail
 
@@ -14,20 +14,28 @@ TARGET_USER="${SUDO_USER:-}"
 
 PACKAGES=(
     labwc wlrctl wlr-randr swayidle
-    python3-pyside6 python3-evdev qt6-qtwayland qt6-qtsvg qt6-qtdeclarative
+    python3 python3-pyside6 python3-evdev qt6-qtwayland qt6-qtsvg qt6-qtdeclarative
     pipewire wireplumber NetworkManager bluez util-linux dbus-tools glib2
-    flatpak mesa-dri-drivers rsms-inter-fonts papirus-icon-theme
+    flatpak mesa-dri-drivers rsms-inter-fonts papirus-icon-theme polkit
 )
-SDDM_PACKAGES=(sddm sddm-wayland-generic)
+SDDM_PACKAGES=(sddm sddm-wayland-generic sddm-themes)
+FLATPAKS=(
+    rocks.shy.VacuumTube org.jellyfin.JellyfinDesktop com.unicornsonlsd.finamp
+    org.videolan.VLC org.localsend.localsend_app
+)
+BRAVE_REPO=https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
+BRAVE_KEY=https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
 
 FORCE_SDDM=0
 AUTOLOGIN=0
+APPS=0
 DEPS=1
 UNINSTALL=0
 for arg in "$@"; do
     case "$arg" in
         --sddm) FORCE_SDDM=1 ;;
         --autologin) AUTOLOGIN=1 ;;
+        --apps) APPS=1 ;;
         --no-deps) DEPS=0 ;;
         --uninstall) UNINSTALL=1 ;;
         -h|--help) sed -n '2,4p' "$0"; exit 0 ;;
@@ -82,8 +90,19 @@ install_packages() {
         log "Installing packages with dnf"
         dnf install -y "${pkgs[@]}"
     fi
+    if (( ! ATOMIC )) && ! command -v brave-browser >/dev/null; then
+        log "Adding Brave's repository (browser and web shortcuts)"
+        rpm --import "$BRAVE_KEY"
+        curl -fsSL "$BRAVE_REPO" -o /etc/yum.repos.d/brave-browser.repo
+        dnf install -y brave-browser
+    fi
     log "Adding Flathub"
     flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
+}
+
+install_apps() {
+    log "Installing the home row apps from Flathub"
+    flatpak install -y --noninteractive --system flathub "${FLATPAKS[@]}"
 }
 
 install_files() {
@@ -96,6 +115,9 @@ install_files() {
     ln -sf "$SHARE/bin/x27-tv-ctl" "$PREFIX/bin/x27-tv-ctl"
     ln -sf "$SHARE/session/x27-tv-session" "$PREFIX/bin/x27-tv-session"
     install -m 644 "$SRC/session/x27-tv.desktop" "$SESSIONS/x27-tv.desktop"
+    if command -v restorecon >/dev/null; then
+        restorecon -R "$SHARE" "$SESSIONS" "$PREFIX/bin" 2>/dev/null || true
+    fi
 }
 
 setup_sddm() {
@@ -108,6 +130,9 @@ setup_sddm() {
     {
         echo "[General]"
         echo "DisplayServer=wayland"
+        echo
+        echo "[Theme]"
+        echo "Current=maya"
         echo
         echo "[Wayland]"
         echo "SessionDir=$SESSIONS,/usr/share/wayland-sessions"
@@ -133,6 +158,9 @@ fi
 
 if (( DEPS )); then
     install_packages
+fi
+if (( APPS )); then
+    install_apps
 fi
 install_files
 if (( WANT_SDDM )); then
