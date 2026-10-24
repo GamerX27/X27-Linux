@@ -28,15 +28,17 @@ sudo ./install.sh --uninstall
 ```
 
 The installer pulls in everything a CLI-only Fedora needs: labwc, wlrctl, wlr-randr,
-swayidle, Python + PySide6 with Qt Wayland/SVG, PipeWire, NetworkManager, BlueZ, polkit,
-Flatpak (adding Flathub), Mesa, Inter, Papirus, and Brave from Brave's own repository
+swayidle, Xwayland, Python + PySide6 with Qt Wayland/SVG, PipeWire, NetworkManager, BlueZ,
+polkit, Flatpak (adding Flathub) with xdg-desktop-portal, Mesa, Inter, Papirus, and Brave from Brave's own repository
 (used for the browser and the web shortcuts). On Fedora Atomic, packages are layered
 with rpm-ostree and arrive after a reboot.
 
 There is no display manager. `--autologin` installs `x27-tv.service`, which logs your
 user into X27 TV on tty1 at boot (the same way kiosk compositors like cage are run).
 If the session crashes it restarts, and **Exit to Console** in the Control Center goes back
-to the normal text login on tty1. Logs: `journalctl -u x27-tv`. Without `--autologin`,
+to the normal text login on tty1. Logs: `journalctl -u x27-tv` for the session, and
+`~/.cache/x27-tv/logs/<app>.log` for each app (if an app doesn't show a window within
+30 seconds, the launcher shows its last error line). Without `--autologin`,
 log in on a console and run `x27-tv-session`.
 
 The apps on the home row are Flatpaks, and the launcher offers to install missing ones

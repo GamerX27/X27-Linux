@@ -1,13 +1,16 @@
-# Starts apps, focuses ones that are already open, installs missing Flatpaks and
-# handles Home, using wlrctl (wlr-foreign-toplevel) when the compositor supports it.
+# Starts apps (output logged to ~/.cache/x27-tv/logs), focuses ones that are already open,
+# installs missing Flatpaks and handles Home, using wlrctl (wlr-foreign-toplevel) when available.
 
+import os
 import shutil
 import subprocess
+from pathlib import Path
 
 from PySide6.QtCore import Property, QObject, QProcess, QTimer, Signal, Slot
 
 SELF_ID = "x27-tv"
 FLATHUB = "https://dl.flathub.org/repo/flathub.flatpakrepo"
+LOG_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "x27-tv/logs"
 
 
 def wlrctl(*args):
@@ -78,8 +81,26 @@ class Launcher(QObject):
         if e["appId"] in self._running and wlrctl("focus", f"app_id:{e['appId']}"):
             self.launched.emit(key)
             return
-        if e["command"] and QProcess.startDetached(e["command"][0], e["command"][1:])[0]:
+        if not e["command"]:
+            return
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        log = str(LOG_DIR / f"{key}.log")
+        proc = QProcess()
+        proc.setProgram(e["command"][0])
+        proc.setArguments(e["command"][1:])
+        proc.setStandardOutputFile(log)
+        proc.setStandardErrorFile(log)
+        if proc.startDetached():
             self.launched.emit(key)
+
+    @Slot(str, result=str)
+    def lastError(self, key):
+        try:
+            lines = [l.strip() for l in (LOG_DIR / f"{key}.log").read_text(errors="replace").splitlines() if l.strip()]
+        except OSError:
+            return ""
+        errors = [l for l in lines if any(w in l.lower() for w in ("error", "fail", "cannot", "not found", "denied"))]
+        return (errors or lines or [""])[-1][:200]
 
     @Slot(str)
     def install(self, key):

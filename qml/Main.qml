@@ -54,11 +54,14 @@ Window {
     onHeightChanged: Theme.s = height / 1080
     Component.onCompleted: Theme.s = height / 1080
 
-    onActiveChanged: if (active && mode === "row") returnAnim.restart()
+    onActiveChanged: {
+        if (!active) opening.done()
+        else if (mode === "row") returnAnim.restart()
+    }
 
     Connections {
         target: Launcher
-        function onLaunched() { curtain.flash() }
+        function onLaunched(key) { opening.show(key) }
     }
 
     Timer { interval: 1000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.now = new Date() }
@@ -147,6 +150,7 @@ Window {
 
         Keys.onPressed: (e) => {
             const k = e.key
+            if (opening.failed) { opening.hide(); e.accepted = true; return }
             const ok = k === Qt.Key_Return || k === Qt.Key_Enter || k === Qt.Key_Select || k === Qt.Key_Space
             const back = k === Qt.Key_Escape || k === Qt.Key_Back || k === Qt.Key_Backspace
             if (k === Qt.Key_HomePage) { root.goHome(); e.accepted = true; return }
@@ -209,16 +213,102 @@ Window {
     }
 
     Rectangle {
-        id: curtain
+        id: opening
         anchors.fill: parent
         color: "black"
-        opacity: 0
-        function flash() { curtainAnim.restart() }
-        SequentialAnimation {
-            id: curtainAnim
-            NumberAnimation { target: curtain; property: "opacity"; to: 1; duration: 260; easing.type: Easing.InCubic }
-            PauseAnimation { duration: 900 }
-            NumberAnimation { target: curtain; property: "opacity"; to: 0; duration: 400 }
+        visible: opacity > 0
+        opacity: shown ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: opening.shown ? 260 : 400 } }
+
+        property bool shown: false
+        property bool failed: false
+        property string key: ""
+        property var app: ({})
+        property string error: ""
+
+        function show(k) {
+            app = root.apps.concat(Apps.allApps).find(a => a.key === k) || { name: "App" }
+            key = k; failed = false; error = ""; shown = true
+            giveUp.restart()
+        }
+        function done() { if (shown && !failed) hide() }
+        function hide() { shown = false; failed = false; giveUp.stop() }
+
+        Timer {
+            id: giveUp
+            interval: 30000
+            onTriggered: {
+                opening.error = Launcher.lastError(opening.key)
+                opening.failed = true
+                autoHide.restart()
+            }
+        }
+        Timer { id: autoHide; interval: 10000; onTriggered: opening.hide() }
+
+        Connections {
+            target: Launcher
+            function onRunningChanged() {
+                if (opening.shown && opening.app.appId && Launcher.running.indexOf(opening.app.appId) >= 0) opening.done()
+            }
+        }
+
+        MouseArea { anchors.fill: parent; enabled: opening.failed; onClicked: opening.hide() }
+
+        Column {
+            anchors.centerIn: parent
+            width: parent.width * 0.6
+            spacing: 28 * Theme.s
+
+            Image {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: 150 * Theme.s; height: width
+                source: opening.app.icon ? "image://icon/" + encodeURIComponent(opening.app.icon) : ""
+                sourceSize: Qt.size(192, 192)
+                visible: status === Image.Ready
+            }
+
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                text: (opening.failed ? "Couldn't open " : "Opening ") + (opening.app.name || "") + (opening.failed ? "" : "…")
+                color: Theme.text
+                font.family: Theme.font
+                font.pixelSize: 40 * Theme.s
+                font.weight: Font.DemiBold
+            }
+
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 14 * Theme.s
+                visible: !opening.failed
+                Repeater {
+                    model: 3
+                    Rectangle {
+                        required property int index
+                        width: 14 * Theme.s; height: width; radius: width / 2
+                        color: Theme.text
+                        SequentialAnimation on opacity {
+                            running: opening.visible && !opening.failed
+                            loops: Animation.Infinite
+                            PauseAnimation { duration: index * 160 }
+                            NumberAnimation { to: 1; duration: 300 }
+                            NumberAnimation { to: 0.25; duration: 500 }
+                            PauseAnimation { duration: (2 - index) * 160 }
+                        }
+                    }
+                }
+            }
+
+            Text {
+                width: parent.width
+                visible: opening.failed
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                text: (opening.error || "It didn't open a window.") + "\n\nPress any button to go back."
+                color: Theme.dim
+                font.family: Theme.font
+                font.pixelSize: 24 * Theme.s
+            }
         }
     }
 }

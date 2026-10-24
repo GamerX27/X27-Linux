@@ -1,5 +1,6 @@
 #!/bin/sh
-# Wayland session entry point: sets up the environment and starts labwc with the x27-tv config.
+# Wayland session entry point: sets up the environment (incl. the user's D-Bus session, which
+# Flatpak apps need) and starts labwc with the x27-tv config.
 X27TV_HOME="${X27TV_HOME:-$(dirname "$(dirname "$(readlink -f "$0")")")}"
 export X27TV_HOME
 export XDG_CURRENT_DESKTOP=x27-tv:wlroots
@@ -12,4 +13,10 @@ for d in /var/lib/flatpak/exports/share "$HOME/.local/share/flatpak/exports/shar
     case ":${XDG_DATA_DIRS:=/usr/local/share:/usr/share}:" in *":$d:"*) ;; *) XDG_DATA_DIRS="$XDG_DATA_DIRS:$d" ;; esac
 done
 export XDG_DATA_DIRS
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && [ -S "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus" ]; then
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/bus"
+fi
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && command -v dbus-run-session >/dev/null; then
+    exec dbus-run-session -- labwc -C "$X27TV_HOME/session/labwc"
+fi
 exec labwc -C "$X27TV_HOME/session/labwc"
