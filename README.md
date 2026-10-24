@@ -203,9 +203,9 @@ Everything in the base image, plus:
 ## Media PC variant
 
 No desktop: Fedora Atomic (`fedora-base`) with
-[X27 TV](https://git.xlabsx27.com/X27/X27-TV), an Apple TV–style launcher in a labwc
-kiosk session, driven by gamepad, TV remote, or keyboard. It's cloned from X27-TV's `main`
-at build time (`/usr/share/x27-tv/COMMIT` says which commit).
+[X27 TV](x27-tv/), an Apple TV–style launcher in a labwc kiosk session, driven by
+gamepad, TV remote, or keyboard. Its source lives in [x27-tv/](x27-tv/) and is built into
+the image from there, so a change to it rebuilds the images like one to `recipes/` or `files/`.
 
 - Boots straight into X27 TV: the first normal user (the account made during install) is
   logged in on tty1, with no display manager. Without such an account, tty1 shows the

@@ -6,7 +6,7 @@ description: X27-Linux (Media PC) - a living-room media box that boots straight 
 base-image: ghcr.io/blue-build/base-images/fedora-base
 image-version: 44
 
-# No desktop: fedora-base is Fedora Atomic without one, and X27 TV (https://git.xlabsx27.com/X27/X27-TV)
+# No desktop: fedora-base is Fedora Atomic without one, and X27 TV (x27-tv/ in this repo)
 # runs as a labwc kiosk session on tty1 instead. The non-KDE parts of recipe-lts.yml are
 # repeated here (system config, Brave, topgrade, the CachyOS LTS kernel and cachyos-settings,
 # the dnf guard), so this builds on its own rather than FROM x27-linux-lts.
@@ -171,28 +171,25 @@ modules:
   # Regenerates initramfs to pick up the kernel swap above. Must run after it.
   - type: initramfs
 
-  # X27 TV, from the tip of its main branch, laid out like its install.sh does but in /usr:
-  # /usr/local is /var/usrlocal on Atomic, and BlueBuild empties /var. The kiosk unit itself is
-  # written at boot by files/media-pc's x27-tv-autologin generator, from session/x27-tv.service.
-  # No display manager: graphical.target only pulls in that unit (or getty, without a user).
+  # X27 TV, from x27-tv/ in this repo (bind-mounted from the build context), laid out like its
+  # install.sh does but in /usr: /usr/local is /var/usrlocal on Atomic, and BlueBuild empties /var.
+  # The kiosk unit itself is written at boot by files/media-pc's x27-tv-autologin generator, from
+  # session/x27-tv.service. No display manager: graphical.target only pulls in that unit (or
+  # getty, without a user).
   - type: containerfile
     snippets:
       - |
-        RUN set -eu \
-            && git clone --depth 1 https://git.xlabsx27.com/X27/X27-TV.git /tmp/x27-tv \
+        RUN --mount=type=bind,src=x27-tv,dst=/tmp/x27-tv,ro set -eu \
             && install -d /usr/share/x27-tv \
             && cp -r /tmp/x27-tv/x27tv /tmp/x27-tv/qml /tmp/x27-tv/config /tmp/x27-tv/session \
                  /tmp/x27-tv/bin /usr/share/x27-tv/ \
-            && git -C /tmp/x27-tv rev-parse HEAD > /usr/share/x27-tv/COMMIT \
             && find /usr/share/x27-tv -name __pycache__ -prune -exec rm -rf {} + \
             && ln -sf /usr/share/x27-tv/bin/x27-tv /usr/bin/x27-tv \
             && ln -sf /usr/share/x27-tv/bin/x27-tv-ctl /usr/bin/x27-tv-ctl \
             && ln -sf /usr/share/x27-tv/session/x27-tv-session /usr/bin/x27-tv-session \
             && install -m 644 /tmp/x27-tv/session/x27-tv.pam /etc/pam.d/x27-tv \
-            && rm -rf /tmp/x27-tv \
             && chmod 755 /usr/lib/systemd/system-generators/x27-tv-autologin \
-            && systemctl set-default graphical.target \
-            && echo "X27 TV $(cat /usr/share/x27-tv/COMMIT)"
+            && systemctl set-default graphical.target
 
   # Sanity check: everything X27 TV's session and home row need.
   - type: containerfile

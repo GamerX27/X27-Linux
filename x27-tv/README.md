@@ -52,7 +52,7 @@ The apps on the home row are Flatpaks, and the launcher offers to install missin
 2. Log in on the console as that user:
    ```
    sudo dnf install -y git
-   git clone https://git.xlabsx27.com/X27/X27-TV.git && cd X27-TV
+   git clone https://git.xlabsx27.com/XlabsX27/X27-Linux.git && cd X27-Linux/x27-tv
    sudo ./install.sh --autologin --apps
    sudo reboot
    ```
