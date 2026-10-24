@@ -1,0 +1,14 @@
+# labwc autostart for the x27-tv session: exports the environment and keeps the launcher
+# running (backing off after repeated crashes, stopping with labwc). Output: ~/.cache/x27-tv/launcher.log
+dbus-update-activation-environment --systemd WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_DATA_DIRS LABWC_PID >/dev/null 2>&1
+(
+    log="${XDG_CACHE_HOME:-$HOME/.cache}/x27-tv/launcher.log"
+    mkdir -p "$(dirname "$log")"
+    fails=0
+    while [ -z "$LABWC_PID" ] || kill -0 "$LABWC_PID" 2>/dev/null; do
+        start=$(date +%s)
+        "$X27TV_HOME/bin/x27-tv" --session > "$log" 2>&1
+        if [ $(( $(date +%s) - start )) -lt 10 ]; then fails=$((fails + 1)); else fails=0; fi
+        if [ "$fails" -ge 5 ]; then sleep 30; else sleep 1; fi
+    done
+) &

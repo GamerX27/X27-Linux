@@ -6,6 +6,7 @@ on:
     paths:
       - "recipes/**"
       - "files/**"
+      - "x27-tv/**"
       - "cosign.pub"
       - ".github/workflows/build.yml"
       - ".github/workflows/build-image.yml"
@@ -15,6 +16,7 @@ on:
     paths:
       - "recipes/**"
       - "files/**"
+      - "x27-tv/**"
       - "cosign.pub"
       - ".github/workflows/build.yml"
       - ".github/workflows/build-image.yml"

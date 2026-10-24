@@ -98,6 +98,10 @@ Gaming and Media PC download new image builds in the background
 (`rpm-ostreed-automatic.timer`, policy `stage`) and switch to them on the next
 reboot; they never reboot by themselves. System Flatpaks update daily
 (`x27-flatpak-update.timer`). There's no weekly topgrade reminder on these two.
+On Media PC, X27 TV also checks once a day while it runs (covering the Flatpaks it
+installs per user) and has **Settings → Software Update**: the installed build, **Check
+for Updates**, and **Restart to Install** once one is downloaded, which also shows up in
+the Control Center.
 To turn it off:
 
 ```
@@ -203,15 +207,16 @@ Everything in the base image, plus:
 ## Media PC variant
 
 No desktop: Fedora Atomic (`fedora-base`) with
-[X27 TV](https://git.xlabsx27.com/X27/X27-TV), an Apple TV–style launcher in a labwc
-kiosk session, driven by gamepad, TV remote, or keyboard. It's cloned from X27-TV's `main`
-at build time (`/usr/share/x27-tv/COMMIT` says which commit).
+[X27 TV](x27-tv/), an Apple TV–style launcher in a labwc kiosk session, driven by
+gamepad, TV remote, or keyboard. Its source lives in [x27-tv/](x27-tv/) and is built into
+the image from there, so a change to it rebuilds the images like one to `recipes/` or `files/`.
 
 - Boots straight into X27 TV: the first normal user (the account made during install) is
   logged in on tty1, with no display manager. Without such an account, tty1 shows the
   normal text login. **Exit to Console** in the Control Center goes to that login too
-- Home row: VacuumTube, Jellyfin Desktop, Finamp, VLC, LocalSend (Flatpaks, installed on
-  first boot), plus Patreon, Odysee, and Brave. Customize it in
+- Home row: VacuumTube, Jellyfin Desktop, Finamp, VLC, LocalSend (Flatpaks; the ISO
+  carries and installs all five offline, from `flatpak_refs-media-pc/`, and rebased systems
+  get any missing ones on first boot), plus Patreon, Odysee, and Brave. Customize it in
   `~/.config/x27-tv/apps.toml` (copy `/usr/share/x27-tv/config/apps.toml`)
 - Logs: `journalctl -u x27-tv` for the session, `~/.cache/x27-tv/logs/` per app
 - Also from the base image: Brave, fish, fastfetch, htop, nvtop, nano, distrobox,

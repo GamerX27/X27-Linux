@@ -1,7 +1,7 @@
 #!/bin/sh
 # Boots the first normal user (UID 1000-59999 with a login shell, i.e. the account made at
 # install) straight into X27 TV on tty1. The image can't know that user ahead of time, so
-# this fills @USER@ into X27-TV's own unit (/usr/share/x27-tv/session/x27-tv.service) at
+# this fills @USER@ into X27 TV's own unit (/usr/share/x27-tv/session/x27-tv.service) at
 # every boot. No such user: nothing is generated and tty1 keeps its normal login.
 TEMPLATE=/usr/share/x27-tv/session/x27-tv.service
 out="${1:?usage: x27-tv-autologin <normal-dir>}"

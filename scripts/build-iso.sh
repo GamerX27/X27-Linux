@@ -146,8 +146,10 @@ esac
 # first boot), so Media PC, which has no KDE, uses sway-atomic: Anaconda has no profile for
 # it and falls back to plain Fedora, which asks for a user.
 VARIANT=kinoite
+REFS_DIR="${REPO_ROOT}/flatpak_refs"
 if [ "$TARGET" = media-pc ]; then
   VARIANT=sway-atomic
+  REFS_DIR="${REPO_ROOT}/flatpak_refs-media-pc"
 fi
 
 # The installed system keeps following this tag on updates.
@@ -194,10 +196,10 @@ if [ "$AVAIL_GB" -lt "$MIN_FREE_GB" ]; then
   echo "WARNING: only ${AVAIL_GB}GB free at ${OUT_DIR}, ${MIN_FREE_GB}GB+ recommended."
 fi
 
-# Flatpaks in flatpak_refs/ plus their runtimes, pulled into an ostree repo by the image
-# itself (same steps as build-container-installer's flatpaks/Makefile). Anaconda installs
-# them offline from the ISO.
-FLATPAK_REFS="$(cat "${REPO_ROOT}"/flatpak_refs/* | tr '\n' ' ')"
+# Flatpaks in flatpak_refs/ (flatpak_refs-media-pc/ for Media PC: its whole home row) plus
+# their runtimes, pulled into an ostree repo by the image itself (same steps as
+# build-container-installer's flatpaks/Makefile). Anaconda installs them offline from the ISO.
+FLATPAK_REFS="$(cat "${REFS_DIR}"/* | tr '\n' ' ')"
 FLATPAK_DIR="${OUT_DIR}/flatpak"
 mkdir -p "$FLATPAK_DIR"
 
