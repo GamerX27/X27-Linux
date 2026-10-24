@@ -1,5 +1,6 @@
 // Generic settings list: renders row descriptors with SettingRow and handles remote
-// navigation, option changes, confirm-twice actions and grab-to-reorder.
+// navigation, option changes, confirm-twice actions and grab-to-reorder. Focus follows its
+// row when rows are added or removed above it (e.g. a "Pairing…" note).
 import QtQuick
 
 FocusScope {
@@ -13,6 +14,7 @@ FocusScope {
     property bool grabbed: false
     property real scrollTarget: 0
     property bool touched: false
+    property string focusKey: ""
 
     signal back()
 
@@ -20,6 +22,8 @@ FocusScope {
         const r = rows[i]
         return !!r && r.kind !== "header" && r.kind !== "note" && r.kind !== "info"
     }
+
+    function keyOf(r) { return r ? r.kind + "|" + (r.label || "") : "" }
 
     function first() {
         for (let i = 0; i < rows.length; i++) if (focusable(i)) return i
@@ -58,16 +62,22 @@ FocusScope {
     }
 
     onRowsChanged: {
+        const key = focusKey
+        const moved = rows.findIndex((r, i) => focusable(i) && keyOf(r) === key)
         if (!touched) index = first()
-        else if (!focusable(index)) {
+        else if (moved >= 0) {
+            if (moved !== index) confirming = -1
+            index = moved
+        } else if (!focusable(index)) {
             const before = index
             step(1)
             if (index === before) step(-1)
             if (!focusable(index)) index = first()
         }
+        focusKey = keyOf(rows[index])
         Qt.callLater(scrollToCurrent)
     }
-    onIndexChanged: Qt.callLater(scrollToCurrent)
+    onIndexChanged: { focusKey = keyOf(rows[index]); Qt.callLater(scrollToCurrent) }
     Component.onCompleted: index = first()
 
     Keys.onPressed: (e) => {

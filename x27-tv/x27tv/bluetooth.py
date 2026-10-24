@@ -1,15 +1,50 @@
 # Bluetooth settings backend via bluetoothctl: power (unblocking rfkill if needed),
-# paired devices, scanning, and pair/connect/disconnect/forget.
+# paired devices, scanning, and pair/connect/disconnect/forget. bluetoothctl exits 0 even
+# when a command fails, so pairing and connecting check the result with `bluetoothctl info`.
 
 import re
 
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
-from .proc import run, sh
+from .proc import run
 
 MAC = re.compile(r"^[0-9A-F]{2}(:[0-9A-F]{2}){5}$")
 UNNAMED = re.compile(r"^[0-9A-F]{2}(-[0-9A-F]{2}){5}$")
 SCAN_SECONDS = 15
+
+# Pairs $1, keeping a discovery session open throughout so the device stays known to BlueZ
+# (it drops unpaired devices shortly after a scan ends). Trusted first: with no agent to answer,
+# an untrusted device's own connection back (controllers do this) would be rejected.
+PAIR = r'''
+m=$1
+bluetoothctl --timeout 60 scan on >/dev/null 2>&1 &
+scan=$!
+trap 'kill $scan 2>/dev/null' EXIT
+i=0
+until bluetoothctl info "$m" >/dev/null 2>&1; do
+    i=$((i + 1))
+    [ $i -ge 10 ] && { echo "Failed: $2 wasn't found. Make sure it's still in pairing mode." >&2; exit 1; }
+    sleep 1
+done
+bluetoothctl trust "$m" >/dev/null
+out=$(bluetoothctl --timeout 25 pair "$m" 2>&1)
+if ! bluetoothctl info "$m" | grep -q "Paired: yes"; then
+    bluetoothctl untrust "$m" >/dev/null
+    echo "$out" >&2
+    echo "Failed to pair with $2. Put it in pairing mode and try again." >&2
+    exit 1
+fi
+kill $scan 2>/dev/null
+'''
+
+# Connects $1 and fails unless it really ended up connected.
+CONNECT = r'''
+out=$(bluetoothctl --timeout 15 connect "$1" 2>&1)
+bluetoothctl info "$1" | grep -q "Connected: yes" && exit 0
+echo "$out" >&2
+echo "Failed to connect to $2. Make sure it's on and nearby." >&2
+exit 1
+'''
 
 
 def kind_of(name):
@@ -120,10 +155,12 @@ class Bluetooth(QObject):
         ]
         self.stateChanged.emit()
 
-    def _start(self, message, script):
+    def _start(self, message, script, *args):
+        if self._busy:
+            return
         self._busy, self._error = message, ""
         self.stateChanged.emit()
-        sh(self, script, self._finish)
+        run(self, "sh", ["-c", script, "sh", *args], self._finish)
 
     def _finish(self, code, out, err):
         self._busy = ""
@@ -158,20 +195,19 @@ class Bluetooth(QObject):
 
     @Slot(str, str)
     def pair(self, mac, name):
-        self._start(f"Pairing with {name}…",
-                    f"bluetoothctl --timeout 25 pair {mac} && bluetoothctl trust {mac} && bluetoothctl --timeout 15 connect {mac}")
+        self._start(f"Pairing with {name}…", PAIR + CONNECT, mac, name)
 
     @Slot(str, str)
     def connectDevice(self, mac, name):
-        self._start(f"Connecting to {name}…", f"bluetoothctl --timeout 15 connect {mac}")
+        self._start(f"Connecting to {name}…", CONNECT, mac, name)
 
     @Slot(str, str)
     def disconnectDevice(self, mac, name):
-        self._start(f"Disconnecting {name}…", f"bluetoothctl disconnect {mac}")
+        self._start(f"Disconnecting {name}…", 'bluetoothctl disconnect "$1"', mac, name)
 
     @Slot(str, str)
     def forget(self, mac, name):
-        self._start(f"Forgetting {name}…", f"bluetoothctl remove {mac}")
+        self._start(f"Forgetting {name}…", 'bluetoothctl remove "$1"', mac, name)
 
     @Slot()
     def clearError(self):

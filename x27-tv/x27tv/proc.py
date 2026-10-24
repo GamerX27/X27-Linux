@@ -27,6 +27,3 @@ def run(parent, program, args, callback=None):
     proc.start(program, args)
     return proc
 
-
-def sh(parent, script, callback=None):
-    return run(parent, "sh", ["-c", script], callback)
