@@ -8,7 +8,7 @@ TV remote or keyboard. Apps open fullscreen on top, and Home brings you back.
   drifting blurred artwork, or your own hero image)
 - **App row**: tiles that lift, tilt and catch light when focused, with a dot for
   apps that are already open (launching one again focuses it instead of starting it twice)
-- **Control Center**: clock, network, volume, Sleep / Restart / Power Off / Exit to Login,
+- **Control Center**: clock, network, volume, Sleep / Restart / Power Off / Exit to Console,
   and the way into Settings
 - **Settings**: Audio (output device, volume), Display (resolution, refresh rate, scale,
   with a 15-second keep-or-revert), Network (Wi-Fi with an on-screen keyboard for
@@ -20,30 +20,27 @@ TV remote or keyboard. Apps open fullscreen on top, and Home brings you back.
 ## Install
 
 ```
-sudo ./install.sh              # packages + x27-tv + "X27 TV" session (+ SDDM if no login screen yet)
-sudo ./install.sh --autologin  # also boots straight into X27 TV (great for a test VM)
+sudo ./install.sh              # packages + x27-tv (+ an "X27 TV" entry for existing login screens)
+sudo ./install.sh --autologin  # also boots straight into X27 TV, with no display manager
 sudo ./install.sh --apps       # also installs the home row Flatpaks system-wide
-sudo ./install.sh --sddm       # switch an existing GDM/Plasma login screen to SDDM
 sudo ./install.sh --no-deps    # only copy the launcher files
 sudo ./install.sh --uninstall
 ```
 
-The installer pulls in everything a minimal Fedora install needs: labwc, wlrctl, wlr-randr,
+The installer pulls in everything a CLI-only Fedora needs: labwc, wlrctl, wlr-randr,
 swayidle, Python + PySide6 with Qt Wayland/SVG, PipeWire, NetworkManager, BlueZ, polkit,
 Flatpak (adding Flathub), Mesa, Inter, Papirus, and Brave from Brave's own repository
-(used for the browser and the web shortcuts). If no display manager is enabled (a fresh
-VM or server install), it installs SDDM with its Wayland greeter and enables it. An
-existing login screen is left alone unless you pass `--sddm`. On Fedora Atomic, packages
-are layered with rpm-ostree, so reboot and run it once more to finish the SDDM step.
+(used for the browser and the web shortcuts). On Fedora Atomic, packages are layered
+with rpm-ostree and arrive after a reboot.
+
+There is no display manager. `--autologin` installs `x27-tv.service`, which logs your
+user into X27 TV on tty1 at boot (the same way kiosk compositors like cage are run).
+If the session crashes it restarts, and **Exit to Console** in the Control Center goes back
+to the normal text login on tty1. Logs: `journalctl -u x27-tv`. Without `--autologin`,
+log in on a console and run `x27-tv-session`.
 
 The apps on the home row are Flatpaks, and the launcher offers to install missing ones
-(**Get** badge). You can also install them up front:
-
-```
-flatpak install flathub rocks.shy.VacuumTube org.jellyfin.JellyfinDesktop com.unicornsonlsd.finamp org.videolan.VLC org.localsend.localsend_app
-```
-
-Reboot, or log out, and pick **X27 TV** on the login screen.
+(**Get** badge), or use `--apps` to install them up front.
 
 ### Testing in a VM (from a CLI-only Fedora)
 
@@ -56,9 +53,7 @@ Reboot, or log out, and pick **X27 TV** on the login screen.
    sudo ./install.sh --autologin --apps
    sudo reboot
    ```
-3. The VM boots into SDDM, logs straight into X27 TV, and the home row apps are ready.
-   **Exit to Login** in the Control Center drops to the SDDM login screen, and the console
-   is still on Ctrl+Alt+F3.
+3. The VM boots straight into X27 TV. A second console is on Ctrl+Alt+F3.
 
 Enable 3D acceleration for the VM (virtio-gpu with GL, or VMware SVGA) so the blur
 effects render smoothly.

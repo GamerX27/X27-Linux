@@ -1,0 +1,8 @@
+#%PAM-1.0
+# PAM stack for the x27-tv kiosk service: no password prompt (the service is the
+# autologin) and a normal logind session with a seat and XDG_RUNTIME_DIR.
+auth       required    pam_permit.so
+account    include     system-auth
+session    required    pam_loginuid.so
+session    optional    pam_keyinit.so force revoke
+session    include     system-auth

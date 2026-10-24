@@ -21,7 +21,7 @@ FocusScope {
         { kind: "action", label: "Sleep", icon: "moon", run: () => System.suspend() },
         { kind: "action", label: "Restart", icon: "arrow-clockwise", confirm: "Press again to restart", run: () => System.reboot() },
         { kind: "action", label: "Power Off", icon: "power", confirm: "Press again to power off", run: () => System.poweroff() },
-        { kind: "action", label: "Exit to Login", icon: "sign-out", confirm: "Press again to exit", run: () => System.exitSession() }
+        { kind: "action", label: System.sessionMode ? "Exit to Console" : "Quit Launcher", icon: "sign-out", confirm: "Press again to exit", run: () => System.exitSession() }
     ]
 
     function open() { index = 0; confirming = -1; shown = true; System.refresh(); forceActiveFocus() }
