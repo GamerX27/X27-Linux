@@ -33,7 +33,8 @@ on:
           - recipe-media-pc.yml
           - recipe-desktop.yml
 
-# Gaming and Desktop build FROM x27-linux and Media PC FROM x27-linux-lts, so each waits for its base.
+# Gaming and Desktop build FROM x27-linux, so each waits for it. Media PC has its own base
+# (fedora-base) and builds alongside main and lts.
 # A variant still runs if its base was skipped (dispatching only that variant) and then
 # builds on the last published base. PR builds don't push, so PR variants do the same.
 # Every job is gated on github.server_url so the Forgejo mirror (git.xlabsx27.com), whose
@@ -94,9 +95,8 @@ jobs:
       id-token: write
 
   media-pc:
-    needs: lts
     if: >-
-      always() && github.server_url == 'https://github.com' && contains(fromJSON('["success","skipped"]'), needs.lts.result)
+      github.server_url == 'https://github.com'
       && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe-media-pc.yml"]'), inputs.recipe))
     uses: ./.github/workflows/build-image.yml
     with:

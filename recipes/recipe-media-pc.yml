@@ -2,26 +2,106 @@
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
 
 name: x27-linux-media-pc
-description: X27-Linux (Media PC) - X27-Linux with the CachyOS LTS kernel, Jellyfin Desktop, Finamp, and LocalSend for a living-room media box
-base-image: ghcr.io/gamerx27/x27-linux-lts
+description: X27-Linux (Media PC) - a living-room media box that boots straight into the X27 TV launcher, with the CachyOS LTS kernel, Jellyfin Desktop, Finamp, VLC, and LocalSend
+base-image: ghcr.io/blue-build/base-images/fedora-base
 image-version: 44
 
-# Builds on x27-linux-lts (recipe-lts.yml): system config, Brave, VLC/Bazaar, topgrade, the
-# CachyOS LTS kernel and cachyos-settings, and the dnf guard all come from there.
-# build.yml builds it first.
+# No desktop: fedora-base is Fedora Atomic without one, and X27 TV (https://git.xlabsx27.com/X27/X27-TV)
+# runs as a labwc kiosk session on tty1 instead. The non-KDE parts of recipe-lts.yml are
+# repeated here (system config, Brave, topgrade, the CachyOS LTS kernel and cachyos-settings,
+# the dnf guard), so this builds on its own rather than FROM x27-linux-lts.
 modules:
-  # Media-pc overlay: taskbar pins for Dolphin, Jellyfin Desktop, VLC, and Finamp over the base's.
+  # system config. media-pc: the X27 TV autologin generator and topgrade's rpm-ostree setting.
   # auto-update sets rpm-ostreed's AutomaticUpdatePolicy to stage.
   - type: files
     files:
+      - source: system
+        destination: /
       - source: media-pc
         destination: /
       - source: auto-update
         destination: /
 
+  # bootc image: package changes happen via dnf in the build container, not rpm-ostree.
+  # The second half is what X27 TV's install.sh installs: labwc and its helpers, PySide6, audio,
+  # network, Bluetooth, and the portals Flatpak apps need.
+  - type: dnf
+    repos:
+      files:
+        - https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
+      keys:
+        - https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
+      cleanup: true
+    install:
+      packages:
+        - brave-browser
+        - fastfetch
+        - fish
+        - htop
+        - nano
+        - nvtop
+        - papirus-icon-theme
+        - pciutils
+        - lm_sensors
+        - distrobox
+        - git-core
+        - labwc
+        - xorg-x11-server-Xwayland
+        - wlrctl
+        - wlr-randr
+        - swayidle
+        - python3
+        - python3-pyside6
+        - python3-evdev
+        - qt6-qtwayland
+        - qt6-qtsvg
+        - qt6-qtdeclarative
+        - pipewire
+        - wireplumber
+        - NetworkManager
+        - NetworkManager-wifi
+        - bluez
+        - util-linux
+        - dbus-tools
+        - glib2
+        - flatpak
+        - xdg-desktop-portal
+        - xdg-desktop-portal-gtk
+        - mesa-dri-drivers
+        - rsms-inter-fonts
+        - polkit
+    remove:
+      packages:
+        - NetworkManager-config-connectivity-fedora
+
+  # The home row apps in X27 TV's config/apps.toml. VLC comes from the ISO (flatpak_refs/);
+  # the rest install on first boot. No notification: there is no notification daemon in labwc.
+  - type: default-flatpaks@v1
+    notify: false
+    system:
+      install:
+        - org.videolan.VLC
+        - rocks.shy.VacuumTube
+        - org.jellyfin.JellyfinDesktop
+        - com.unicornsonlsd.finamp
+        - org.localsend.localsend_app
+      remove:
+        - io.github.kolunmi.Bazaar
+
+  - type: dnf
+    repos:
+      copr:
+        - lilay/topgrade
+      cleanup: true
+    install:
+      packages:
+        - topgrade
+
+  # x27-install-date.service (files/systemd/system/) stamps /var/lib/x27-linux/install-date on
+  # first boot only, for fastfetch's OS Age.
   # Auto-updates: the image is staged in the background and used on the next reboot, and
   # Flatpaks update daily. bootc-fetch-apply-updates.timer stays masked since it reboots.
-  # The Kinoite base masks rpm-ostreed-automatic.timer, and this module enables before it
+  # The base masks rpm-ostreed-automatic.timer, and this module enables before it
   # unmasks, so the unmask is its own module first.
   - type: systemd
     system:
@@ -31,34 +111,139 @@ modules:
   - type: systemd
     system:
       enabled:
+        - x27-install-date.service
+        - x27-flathub-metadata.service
         - rpm-ostreed-automatic.timer
         - x27-flatpak-update.timer
-    user:
-      disabled:
-        - topgrade-reminder.timer
+      masked:
+        - bootc-fetch-apply-updates.timer
 
-  # VLC comes from the ISO (flatpak_refs/); these are listed again so rebased systems still
-  # get them if this list replaces the base's. Bazaar is an RPM from the base image.
-  - type: default-flatpaks@v1
-    notify: true
-    system:
-      install:
-        - org.videolan.VLC
-        - org.kde.kate
-        - org.kde.kwrite
-        - org.kde.filelight
-        - org.kde.kcharselect
-        - org.kde.kfind
-        - com.github.wwmm.easyeffects
-        - org.jellyfin.JellyfinDesktop
-        - com.unicornsonlsd.finamp
-        - org.localsend.localsend_app
-      remove:
-        - io.github.kolunmi.Bazaar
+  # kernel-cachyos-lts lives in the same bieszczaders/kernel-cachyos copr as the rolling
+  # kernel-cachyos package. Needs an x86_64-v3 CPU. cleanup: false is deliberate: the copr must
+  # stay enabled for the containerfile install below, then gets disabled there.
+  - type: dnf
+    repos:
+      copr:
+        - bieszczaders/kernel-cachyos
+    install:
+      packages:
+        - sbsigntools
+        - mokutil
 
+  # kernel-cachyos-lts Provides: kernel, so the stock kernel is removed first (installing
+  # the new one first would remove it right back out). noscripts skips the RPM's
+  # post-install kernel-install/dracut hook, which fails before depmod has run - depmod
+  # runs manually below.
   - type: containerfile
     snippets:
-      # VARIANT stays Kinoite: topgrade uses it to pick rpm-ostree over dnf.
+      - |
+        RUN set -eu \
+            && STOCK_KVER="$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -n1)" \
+            && echo "Removing Fedora kernel ${STOCK_KVER}" \
+            && dnf5 -y remove --no-autoremove \
+                 kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra \
+            && rm -rf "/usr/lib/modules/${STOCK_KVER}" \
+            && dnf5 -y install --setopt=tsflags=noscripts \
+                 kernel-cachyos-lts kernel-cachyos-lts-devel-matched \
+            && dnf5 -y install --skip-unavailable virtualbox-guest-additions \
+            && dnf5 -y copr disable bieszczaders/kernel-cachyos \
+            && dnf5 clean all \
+            && test "$(ls -1 /usr/lib/modules | wc -l)" -eq 1 \
+            && KVER="$(ls -1 /usr/lib/modules)" \
+            && test -f "/usr/lib/modules/${KVER}/vmlinuz" \
+            && depmod -a "${KVER}" \
+            && test -f "/usr/lib/modules/${KVER}/modules.dep" \
+            && echo "Kernel now: ${KVER}"
+
+  # CachyOS userspace tuning from bieszczaders/kernel-cachyos-addons: cachyos-settings (sysctl,
+  # zram, udev, ntsync) and the sched-ext schedulers. cachyos-settings Conflicts with
+  # zram-generator-defaults, hence the swap. Before initramfs: it adds modprobe.d/udev rules.
+  # scx_loader stays disabled here; BORE from the kernel stays in charge.
+  - type: containerfile
+    snippets:
+      - |
+        RUN dnf5 -y copr enable bieszczaders/kernel-cachyos-addons \
+            && dnf5 -y swap zram-generator-defaults cachyos-settings \
+            && dnf5 -y install scx-scheds scx-tools \
+            && dnf5 -y copr disable bieszczaders/kernel-cachyos-addons \
+            && rpm -q cachyos-settings scx-scheds scx-tools
+
+  # Regenerates initramfs to pick up the kernel swap above. Must run after it.
+  - type: initramfs
+
+  # X27 TV, from the tip of its main branch, laid out like its install.sh does but in /usr:
+  # /usr/local is /var/usrlocal on Atomic, and BlueBuild empties /var. The kiosk unit itself is
+  # written at boot by files/media-pc's x27-tv-autologin generator, from session/x27-tv.service.
+  # No display manager: graphical.target only pulls in that unit (or getty, without a user).
+  - type: containerfile
+    snippets:
+      - |
+        RUN set -eu \
+            && git clone --depth 1 https://git.xlabsx27.com/X27/X27-TV.git /tmp/x27-tv \
+            && install -d /usr/share/x27-tv \
+            && cp -r /tmp/x27-tv/x27tv /tmp/x27-tv/qml /tmp/x27-tv/config /tmp/x27-tv/session \
+                 /tmp/x27-tv/bin /usr/share/x27-tv/ \
+            && git -C /tmp/x27-tv rev-parse HEAD > /usr/share/x27-tv/COMMIT \
+            && find /usr/share/x27-tv -name __pycache__ -prune -exec rm -rf {} + \
+            && ln -sf /usr/share/x27-tv/bin/x27-tv /usr/bin/x27-tv \
+            && ln -sf /usr/share/x27-tv/bin/x27-tv-ctl /usr/bin/x27-tv-ctl \
+            && ln -sf /usr/share/x27-tv/session/x27-tv-session /usr/bin/x27-tv-session \
+            && install -m 644 /tmp/x27-tv/session/x27-tv.pam /etc/pam.d/x27-tv \
+            && rm -rf /tmp/x27-tv \
+            && chmod 755 /usr/lib/systemd/system-generators/x27-tv-autologin \
+            && systemctl set-default graphical.target \
+            && echo "X27 TV $(cat /usr/share/x27-tv/COMMIT)"
+
+  # Sanity check: everything X27 TV's session and home row need.
+  - type: containerfile
+    snippets:
+      - |
+        RUN set -eu \
+            && for cmd in labwc wlrctl wlr-randr swayidle nmcli bluetoothctl wpctl flatpak \
+                 brave-browser x27-tv x27-tv-ctl x27-tv-session; do \
+                 command -v "$cmd" >/dev/null || { echo "missing: $cmd" >&2; exit 1; }; \
+               done \
+            && python3 -c 'import PySide6.QtQuick, evdev' \
+            && grep -q '@USER@' /usr/share/x27-tv/session/x27-tv.service \
+            && grep -q '^browser = "brave-browser"' /usr/share/x27-tv/config/apps.toml \
+            && ! rpm -q plasma-workspace
+
+  # make_brave_great_again.sh's /etc/hosts step always fails here (buildah bind-mounts it
+  # read-only during RUN) and is ignored; the policy file it writes is verified explicitly instead.
+  - type: containerfile
+    snippets:
+      - |
+        RUN curl -fsSL -o /usr/bin/x-linuxtool \
+              https://codeberg.org/X27/X-Linuxtool/raw/branch/main/X-Linuxtool.sh \
+            && chmod +x /usr/bin/x-linuxtool
+      - |
+        RUN set -eu; \
+            curl -fsSL -o /tmp/make_brave_great_again.sh \
+              https://codeberg.org/X27/X-Linuxtool/raw/branch/main/Desktop/Linux-Desktop/Browser/make_brave_great_again.sh; \
+            chmod +x /tmp/make_brave_great_again.sh; \
+            /tmp/make_brave_great_again.sh || true; \
+            test -f /etc/brave/policies/managed/make_brave_great_again.json; \
+            rm -f /tmp/make_brave_great_again.sh
+      # Same LC_TIME setup as recipe-lts.yml: localectl if it works in the build step, else
+      # the sed/echo fallback.
+      - |
+        RUN set_locale_time() { \
+                locales=$(localectl list-locales 2>/dev/null) || return 1; \
+                if echo "$locales" | grep -q "C.UTF-8"; then \
+                    localectl set-locale LC_TIME=C.UTF-8 || return 1; \
+                fi; \
+            }; \
+            set_locale_time || { \
+                if grep -q '^LC_TIME=' /etc/locale.conf 2>/dev/null; then \
+                    sed -i 's/^LC_TIME=.*/LC_TIME=C.UTF-8/' /etc/locale.conf; \
+                else \
+                    echo 'LC_TIME=C.UTF-8' >> /etc/locale.conf; \
+                fi; \
+            }
+      - |
+        RUN plymouth-set-default-theme -R bgrt
+      # fedora-base sets no VARIANT; topgrade is pointed at rpm-ostree by files/media-pc's
+      # /etc/skel/.config/topgrade.toml instead.
       # Set directly here, not via BlueBuild's os-release module: a value substituted into
       # the recipe by an earlier workflow step doesn't survive blue-build's own checkout
       # right before the build starts.
@@ -68,17 +253,14 @@ modules:
             && . /etc/os-release \
             && sed -i --follow-symlinks -e '/^NAME=/d' -e '/^PRETTY_NAME=/d' -e '/^BUILD_ID=/d' /etc/os-release \
             && printf 'NAME="X27-Linux"\nPRETTY_NAME="X27-Linux %s Media PC (%s)"\nBUILD_ID="%s-%s"\n' \
-                 "${VERSION_ID}" "${BUILD_DATE}" "${VERSION_ID}" "${BUILD_DATE}" >> /etc/os-release \
-            && grep -qx 'VARIANT="Kinoite"' /etc/os-release
+                 "${VERSION_ID}" "${BUILD_DATE}" "${VERSION_ID}" "${BUILD_DATE}" >> /etc/os-release
 
-  # The dnf guard comes from the base image. Re-applied only if something replaced the symlink.
+  # Last step: all dnf5 calls above are done. See files/system/usr/libexec/x27-dnf-guard.
   - type: containerfile
     snippets:
       - |
-        RUN if [ ! -L /usr/bin/dnf5 ]; then \
-              mv /usr/bin/dnf5 /usr/libexec/dnf5-real \
-              && ln -s /usr/libexec/x27-dnf-guard /usr/bin/dnf5; \
-            fi \
+        RUN mv /usr/bin/dnf5 /usr/libexec/dnf5-real \
+            && ln -s /usr/libexec/x27-dnf-guard /usr/bin/dnf5 \
             && test "$(readlink -f /usr/bin/dnf)" = /usr/libexec/x27-dnf-guard \
             && dnf5 --version
 

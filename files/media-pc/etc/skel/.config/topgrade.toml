@@ -1,0 +1,4 @@
+# Media PC has no Kinoite VARIANT in /etc/os-release, so topgrade would pick dnf
+# (disabled on X27-Linux). This makes it update the image with rpm-ostree instead.
+[linux]
+rpm_ostree = true
