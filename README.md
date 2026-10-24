@@ -98,6 +98,10 @@ Gaming and Media PC download new image builds in the background
 (`rpm-ostreed-automatic.timer`, policy `stage`) and switch to them on the next
 reboot; they never reboot by themselves. System Flatpaks update daily
 (`x27-flatpak-update.timer`). There's no weekly topgrade reminder on these two.
+On Media PC, X27 TV also checks once a day while it runs (covering the Flatpaks it
+installs per user) and has **Settings → Software Update**: the installed build, **Check
+for Updates**, and **Restart to Install** once one is downloaded, which also shows up in
+the Control Center.
 To turn it off:
 
 ```

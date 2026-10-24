@@ -1,5 +1,6 @@
-// Glass side panel: clock, network, volume and power/session actions. Up/Down to move,
-// Left/Right for volume, OK to activate (power actions need a second press to confirm).
+// Glass side panel: clock, network, volume and power/session actions, plus Restart to Update
+// once an update is downloaded. Up/Down to move, Left/Right for volume, OK to activate (power
+// actions need a second press to confirm).
 import QtQuick
 import QtQuick.Effects
 
@@ -18,6 +19,8 @@ FocusScope {
     readonly property var items: [
         { kind: "volume", label: "Volume" },
         { kind: "action", label: "Settings", icon: "gear-six", run: () => cc.settingsRequested() },
+        ...(Updates.pending ? [{ kind: "action", label: "Restart to Update", icon: "arrow-fat-up",
+                                 confirm: "Press again to restart and update", run: () => System.reboot() }] : []),
         { kind: "action", label: "Sleep", icon: "moon", run: () => System.suspend() },
         { kind: "action", label: "Restart", icon: "arrow-clockwise", confirm: "Press again to restart", run: () => System.reboot() },
         { kind: "action", label: "Power Off", icon: "power", confirm: "Press again to power off", run: () => System.poweroff() },

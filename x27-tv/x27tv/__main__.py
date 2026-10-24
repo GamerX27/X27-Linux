@@ -23,6 +23,7 @@ from .network import Network
 from .pointer import Pointer
 from .prefs import IdleManager, Prefs
 from .system import System
+from .updates import Updates
 
 
 UI_ICONS = ROOT / "qml/icons"
@@ -104,6 +105,7 @@ def main():
     display = Display(prefs, args.session)
     network = Network()
     bluetooth = Bluetooth()
+    updates = Updates(prefs)
     idle = IdleManager(prefs, args.session)
     store.refresh()
 
@@ -119,6 +121,7 @@ def main():
     ctx.setContextProperty("Display", display)
     ctx.setContextProperty("Network", network)
     ctx.setContextProperty("Bluetooth", bluetooth)
+    ctx.setContextProperty("Updates", updates)
     ctx.setContextProperty("idleSupported", idle.enabled)
     ctx.setContextProperty("startWindowed", args.windowed)
     engine.load(QUrl.fromLocalFile(str(ROOT / "qml/Main.qml")))

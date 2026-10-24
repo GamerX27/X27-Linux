@@ -22,6 +22,7 @@ FocusScope {
         { key: "Bluetooth", title: "Bluetooth", icon: "bluetooth", color: "#5e5ce6" },
         { key: "Home", title: "Home Screen", icon: "squares-four", color: "#ff9f0a" },
         { key: "Power", title: "Power", icon: "moon", color: "#64d2ff" },
+        { key: "Updates", title: "Software Update", icon: "arrow-fat-up", color: "#bf5af2" },
         { key: "System", title: "System", icon: "info", color: "#8e8e93" }
     ]
 

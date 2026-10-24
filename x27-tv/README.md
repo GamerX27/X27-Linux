@@ -9,11 +9,15 @@ TV remote or keyboard. Apps open fullscreen on top, and Home brings you back.
 - **App row**: tiles that lift, tilt and catch light when focused, with a dot for
   apps that are already open (launching one again focuses it instead of starting it twice)
 - **Control Center**: clock, network, volume, Sleep / Restart / Power Off / Exit to Console,
-  and the way into Settings
+  the way into Settings, and Restart to Update once an update is downloaded
 - **Settings**: Audio (output device, volume), Display (resolution, refresh rate, scale,
   with a 15-second keep-or-revert), Network (Wi-Fi with an on-screen keyboard for
   passwords), Bluetooth (pair controllers, headphones and remotes), Home Screen (reorder
-  and hide apps), Power (screen-off and auto-sleep timers), System (device info, restart)
+  and hide apps), Power (screen-off and auto-sleep timers), Software Update (installed build,
+  check now, restart to install), System (device info, restart)
+- **Updates**: once a day, and on **Check for Updates**, the launcher downloads the next
+  system build on Fedora Atomic (`rpm-ostree upgrade`, installed on the next restart) and
+  updates system and user Flatpaks, keeping the TV from sleeping meanwhile
 - **Taskbar**: running apps along the bottom of the home screen. Switch to one or close it
 - **All Apps**: every installed desktop app in a grid
 - Missing Flatpaks show a **Get** badge, and pressing OK installs them from Flathub
