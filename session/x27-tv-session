@@ -1,0 +1,15 @@
+#!/bin/sh
+# Wayland session entry point: sets up the environment and starts labwc with the x27-tv config.
+X27TV_HOME="${X27TV_HOME:-$(dirname "$(dirname "$(readlink -f "$0")")")}"
+export X27TV_HOME
+export XDG_CURRENT_DESKTOP=x27-tv:wlroots
+export XDG_SESSION_DESKTOP=x27-tv
+export XDG_SESSION_TYPE=wayland
+export QT_QPA_PLATFORM=wayland
+export MOZ_ENABLE_WAYLAND=1
+export ELECTRON_OZONE_PLATFORM_HINT=auto
+for d in /var/lib/flatpak/exports/share "$HOME/.local/share/flatpak/exports/share"; do
+    case ":${XDG_DATA_DIRS:=/usr/local/share:/usr/share}:" in *":$d:"*) ;; *) XDG_DATA_DIRS="$XDG_DATA_DIRS:$d" ;; esac
+done
+export XDG_DATA_DIRS
+exec labwc -C "$X27TV_HOME/session/labwc"

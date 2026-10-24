@@ -1,0 +1,54 @@
+# x27-tv home row. Copy to ~/.config/x27-tv/apps.toml to customize.
+# Entry kinds: flatpak = "<id>", exec = "<command>", or url = "<site>" (opened as a browser app).
+
+browser = "brave-browser"
+
+[[app]]
+name = "VacuumTube"
+flatpak = "rocks.shy.VacuumTube"
+tagline = "YouTube, built for the big screen."
+accent = ["#ff3b30", "#5a0b0b"]
+
+[[app]]
+name = "Jellyfin"
+flatpak = "org.jellyfin.JellyfinDesktop"
+tagline = "Your movies, shows and music."
+accent = ["#aa5cc3", "#00a4dc"]
+
+[[app]]
+name = "Finamp"
+flatpak = "com.unicornsonlsd.finamp"
+tagline = "Your Jellyfin music library."
+accent = ["#7b61ff", "#1b1440"]
+
+[[app]]
+name = "VLC"
+flatpak = "org.videolan.VLC"
+tagline = "Plays anything you throw at it."
+accent = ["#ff8800", "#4a2400"]
+
+[[app]]
+name = "Patreon"
+url = "https://www.patreon.com/"
+tagline = "Support the creators you love."
+accent = ["#ff424d", "#141518"]
+
+[[app]]
+name = "Odysee"
+url = "https://odysee.com/"
+tagline = "Videos from independent creators."
+accent = ["#ef1970", "#f3a34b"]
+
+[[app]]
+name = "Brave"
+exec = "brave-browser"
+icon = "brave-browser"
+app_id = "brave-browser"
+tagline = "Browse the web from your couch."
+accent = ["#fb542b", "#2a0f08"]
+
+[[app]]
+name = "LocalSend"
+flatpak = "org.localsend.localsend_app"
+tagline = "Send files from your phone to the TV."
+accent = ["#2ec4b6", "#0b3b37"]

@@ -1,0 +1,3 @@
+# labwc autostart for the x27-tv session: exports the environment and keeps the launcher running.
+dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE XDG_DATA_DIRS LABWC_PID >/dev/null 2>&1
+( while :; do "$X27TV_HOME/bin/x27-tv" --session; sleep 1; done ) &
