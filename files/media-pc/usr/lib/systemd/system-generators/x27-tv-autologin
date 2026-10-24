@@ -1,0 +1,25 @@
+#!/bin/sh
+# Boots the first normal user (UID 1000-59999 with a login shell, i.e. the account made at
+# install) straight into X27 TV on tty1. The image can't know that user ahead of time, so
+# this fills @USER@ into X27-TV's own unit (/usr/share/x27-tv/session/x27-tv.service) at
+# every boot. No such user: nothing is generated and tty1 keeps its normal login.
+TEMPLATE=/usr/share/x27-tv/session/x27-tv.service
+out="${1:?usage: x27-tv-autologin <normal-dir>}"
+
+[ -f "$TEMPLATE" ] || exit 0
+
+user=
+while IFS=: read -r name _ uid _ _ _ shell; do
+    case "$shell" in */nologin|*/false|"") continue ;; esac
+    if [ "$uid" -ge 1000 ] 2>/dev/null && [ "$uid" -lt 60000 ]; then
+        user="$name"
+        break
+    fi
+done < /etc/passwd
+
+[ -n "$user" ] || exit 0
+
+# install.sh puts X27 TV in /usr/local; the image has it in /usr.
+sed -e "s/@USER@/$user/g" -e 's|/usr/local/bin/|/usr/bin/|g' "$TEMPLATE" > "$out/x27-tv.service"
+mkdir -p "$out/graphical.target.wants"
+ln -sf ../x27-tv.service "$out/graphical.target.wants/x27-tv.service"

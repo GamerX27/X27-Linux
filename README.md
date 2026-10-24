@@ -6,9 +6,12 @@ Custom Fedora Kinoite 44, built with [BlueBuild](https://blue-build.org/).
 - LTS kernel: `ghcr.io/gamerx27/x27-linux-lts` — [recipe-lts.yml](recipes/recipe-lts.yml)
 - Gaming: `ghcr.io/gamerx27/x27-linux-gaming` — [recipe-gaming.yml](recipes/recipe-gaming.yml), built on Base
 - Desktop: `ghcr.io/gamerx27/x27-linux-desktop` — [recipe-desktop.yml](recipes/recipe-desktop.yml), built on Base
-- Media PC: `ghcr.io/gamerx27/x27-linux-media-pc` — [recipe-media-pc.yml](recipes/recipe-media-pc.yml), built on LTS kernel
+- Media PC: `ghcr.io/gamerx27/x27-linux-media-pc` — [recipe-media-pc.yml](recipes/recipe-media-pc.yml), no desktop: boots into the X27 TV launcher, with the LTS kernel
 
-Base and LTS build first; Gaming, Desktop, and Media PC build on top of them once they finish.
+Base, LTS, and Media PC build first; Gaming and Desktop build on top of Base once it finishes.
+
+The KDE parts below (Plasma theme, Konsole, Bazaar, taskbar pins) don't apply to Media PC,
+see [Media PC variant](#media-pc-variant).
 
 ## What's in it
 
@@ -56,7 +59,8 @@ systemctl reboot
 Swap `x27-linux` for `x27-linux-lts` (LTS kernel), `x27-linux-gaming`
 (Steam/gaming, see below), `x27-linux-desktop` (daily use, see below), or
 `x27-linux-media-pc` (media center, see below) in
-the commands above.
+the commands above. Rebasing a KDE install onto Media PC removes Plasma; your
+account then boots into X27 TV.
 
 ### Image tags
 
@@ -194,12 +198,21 @@ Everything in the base image, plus:
 
 ## Media PC variant
 
-Everything in the base image, plus:
+No desktop: Fedora Atomic (`fedora-base`) with
+[X27 TV](https://git.xlabsx27.com/X27/X27-TV), an Apple TV–style launcher in a labwc
+kiosk session, driven by gamepad, TV remote, or keyboard. It's cloned from X27-TV's `main`
+at build time (`/usr/share/x27-tv/COMMIT` says which commit).
 
+- Boots straight into X27 TV: the first normal user (the account made during install) is
+  logged in on tty1, with no display manager. Without such an account, tty1 shows the
+  normal text login. **Exit to Console** in the Control Center goes to that login too
+- Home row: VacuumTube, Jellyfin Desktop, Finamp, VLC, LocalSend (Flatpaks, installed on
+  first boot), plus Patreon, Odysee, and Brave. Customize it in
+  `~/.config/x27-tv/apps.toml` (copy `/usr/share/x27-tv/config/apps.toml`)
+- Logs: `journalctl -u x27-tv` for the session, `~/.cache/x27-tv/logs/` per app
+- Also from the base image: Brave, fish, fastfetch, htop, nvtop, nano, distrobox,
+  topgrade, codecs and hardware video decode, the CachyOS tuning
 - LTS kernel (see above)
-- Jellyfin Desktop and Finamp (Flatpak) for media playback
-- LocalSend (Flatpak) for quick file transfers
-- Dolphin, Jellyfin Desktop, VLC, Finamp, and Bazaar pinned to the taskbar (new accounts only)
 - Updates itself, see [Auto-updates](#auto-updates)
 
 ## Build
