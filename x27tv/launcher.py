@@ -1,4 +1,5 @@
-# Starts apps (output logged to ~/.cache/x27-tv/logs), focuses ones that are already open,
+# Starts apps (in the x27-tv session via the user's systemd, so they get a clean user context;
+# output logged to ~/.cache/x27-tv/logs), focuses ones that are already open,
 # installs missing Flatpaks and handles Home, using wlrctl (wlr-foreign-toplevel) when available.
 
 import os
@@ -118,9 +119,16 @@ class Launcher(QObject):
             return
         LOG_DIR.mkdir(parents=True, exist_ok=True)
         log = str(LOG_DIR / f"{key}.log")
+        cmd = list(e["command"])
+        if os.environ.get("LABWC_PID") and shutil.which("systemd-run"):
+            env = [a for v in ("WAYLAND_DISPLAY", "DISPLAY", "XDG_DATA_DIRS", "XDG_CURRENT_DESKTOP", "XDG_SESSION_TYPE",
+                               "QT_QPA_PLATFORM", "MOZ_ENABLE_WAYLAND", "ELECTRON_OZONE_PLATFORM_HINT") if v in os.environ
+                   for a in ("-E", v)]
+            cmd = ["systemd-run", "--user", "--collect", "--quiet", "--unit", f"x27-{key}-{os.getpid()}-{len(os.listdir(LOG_DIR))}",
+                   "-p", f"StandardOutput=truncate:{log}", "-p", f"StandardError=append:{log}", *env, "--", *cmd]
         proc = QProcess()
-        proc.setProgram(e["command"][0])
-        proc.setArguments(e["command"][1:])
+        proc.setProgram(cmd[0])
+        proc.setArguments(cmd[1:])
         proc.setStandardOutputFile(log)
         proc.setStandardErrorFile(log)
         if proc.startDetached():
