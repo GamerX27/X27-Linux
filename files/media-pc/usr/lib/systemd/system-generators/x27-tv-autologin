@@ -21,5 +21,7 @@ done < /etc/passwd
 
 # install.sh puts X27 TV in /usr/local; the image has it in /usr.
 sed -e "s/@USER@/$user/g" -e 's|/usr/local/bin/|/usr/bin/|g' "$TEMPLATE" > "$out/x27-tv.service"
-mkdir -p "$out/graphical.target.wants"
-ln -sf ../x27-tv.service "$out/graphical.target.wants/x27-tv.service"
+# multi-user.target, not graphical.target: Anaconda sets the default target to
+# multi-user.target when it finds no display manager, and graphical.target pulls it in anyway.
+mkdir -p "$out/multi-user.target.wants"
+ln -sf ../x27-tv.service "$out/multi-user.target.wants/x27-tv.service"

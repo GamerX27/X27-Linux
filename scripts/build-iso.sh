@@ -142,6 +142,14 @@ case "$TARGET" in
     ;;
 esac
 
+# Picks Anaconda's profile. Kinoite's hides user creation (KDE's Plasma Setup does it on
+# first boot), so Media PC, which has no KDE, uses sway-atomic: Anaconda has no profile for
+# it and falls back to plain Fedora, which asks for a user.
+VARIANT=kinoite
+if [ "$TARGET" = media-pc ]; then
+  VARIANT=sway-atomic
+fi
+
 # The installed system keeps following this tag on updates.
 if [ -z "$TAG" ]; then
   if [ -t 0 ]; then
@@ -240,7 +248,7 @@ sudo docker run --rm --privileged --network host \
   -v "${OUT_DIR}:/build-container-installer/build" \
   -v dnf-cache:/cache/dnf/ \
   "${INSTALLER_IMAGE}" \
-  VARIANT=kinoite \
+  "VARIANT=${VARIANT}" \
   "ISO_NAME=build/${ISO_NAME}" \
   DNF_CACHE=/cache/dnf \
   SECURE_BOOT_KEY_URL=https://github.com/ublue-os/bazzite/raw/main/secure_boot.der \

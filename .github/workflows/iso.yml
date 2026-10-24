@@ -70,7 +70,10 @@ jobs:
           image_name: ${{ matrix.image }}
           image_tag: ${{ inputs.tag }}
           version: "44"
-          variant: kinoite
+          # Picks Anaconda's profile. Kinoite's hides user creation (KDE's Plasma Setup does it on
+          # first boot); Media PC has no KDE, and sway-atomic has no profile, so Anaconda falls
+          # back to plain Fedora, which asks for a user.
+          variant: ${{ matrix.image == 'x27-linux-media-pc' && 'sway-atomic' || 'kinoite' }}
           iso_name: ${{ matrix.image }}.iso
           secure_boot_key_url: https://github.com/ublue-os/bazzite/raw/main/secure_boot.der
           enrollment_password: universalblue
