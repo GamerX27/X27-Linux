@@ -8,7 +8,7 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-from PySide6.QtCore import ClassInfo, QByteArray, QEvent, QObject, QSize, Qt, QUrl, Signal, Slot
+from PySide6.QtCore import ClassInfo, QByteArray, QEvent, QObject, QSize, Qt, QTimer, QUrl, Signal, Slot
 from PySide6.QtDBus import QDBusConnection
 from PySide6.QtGui import QColor, QGuiApplication, QIcon, QKeyEvent, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
@@ -178,14 +178,8 @@ def main():
     if bus.isConnected() and bus.registerService("org.x27tv.Launcher"):
         bus.registerObject("/", remote, QDBusConnection.ExportAllSlots)
 
-    def type_into_app():
-        menu = window.property("quickMenu")
-        if menu is not None:
-            app_id = launcher.front_app()
-            w = next((x for x in launcher.windows if x["appId"] == app_id), None)
-            menu.openKeyboard(w["name"] if w else "")
-
-    mouse.typeRequested.connect(type_into_app)
+    # Mouse mode's Y: the typing keyboard opens over the app without taking its focus.
+    mouse.typeRequested.connect(lambda: mouse.set_typing(not mouse.typing))
 
     pad = None
     if Gamepad.available():
@@ -206,9 +200,14 @@ def main():
             pad.set_route_mouse(on)
             mouse.set_active(on)
 
+        # Focus can settle after the overlay closes, so check again once it has.
+        def reroute():
+            route()
+            QTimer.singleShot(150, route)
+
         if menu is not None:
-            menu.visibleChanged.connect(route)
-        window.activeChanged.connect(route)
+            menu.visibleChanged.connect(reroute)
+        window.activeChanged.connect(reroute)
         mouse.changed.connect(route)
         pad.start()
 

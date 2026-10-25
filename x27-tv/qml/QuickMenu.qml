@@ -1,8 +1,6 @@
 // In-app quick menu: a panel over whatever app is open, on labwc's overlay layer, with the app
 // dimmed and paused (frozen) behind it. Opened by Guide/Home or Super+Q in an app: Home, Exit
-// App, volume, audio output, Gamepad as Mouse, Settings, Sleep; Guide or Back closes it. The
-// same window hosts the on-screen keyboard that types into the app in mouse mode (Y), which
-// doesn't pause the app.
+// App, volume, audio output, Gamepad as Mouse, Settings, Sleep; Guide or Back closes it.
 import QtQuick
 import QtQuick.Window
 import org.kde.layershell 1.0 as LayerShell
@@ -33,7 +31,6 @@ Window {
 
     function open(id, name) {
         appId = id; appName = name; index = 0; confirming = -1
-        keyboard.shown = false
         visible = true
         requestActivate()
         panel.forceActiveFocus()
@@ -41,18 +38,8 @@ Window {
         System.refresh(); Audio.refresh()
     }
     function close() {
-        keyboard.shown = false
         visible = false
         Launcher.resumeApp(appId)
-    }
-
-    // Mouse mode's Y: type text into the app in front. The keyboard needs focus while open;
-    // closing it hands focus back to the app, then the text is typed there.
-    function openKeyboard(name) {
-        appName = name
-        visible = true
-        requestActivate()
-        keyboard.open("Type into " + (name || "the app"), false, text => { if (text) Mouse.typeText(text) })
     }
 
     function cycleOutput(d) {
@@ -90,22 +77,14 @@ Window {
 
     Rectangle {
         anchors.fill: parent
-        visible: !keyboard.shown
         color: "#73000000"
         MouseArea { anchors.fill: parent; onClicked: qm.close() }
-    }
-
-    OnScreenKeyboard {
-        id: keyboard
-        anchors.fill: parent
-        onFinished: qm.close()
     }
 
     Item {
         id: panel
         anchors { top: parent.top; bottom: parent.bottom; right: parent.right; margins: 32 * Theme.s }
         width: 560 * Theme.s
-        visible: !keyboard.shown
         focus: true
 
         Keys.onPressed: (e) => {
@@ -215,7 +194,7 @@ Window {
                     Text {
                         visible: row.mouse
                         anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 28 * Theme.s; bottomMargin: 16 * Theme.s }
-                        text: "A click · X right-click · Y type · L3+R3 off"
+                        text: "A click · X right-click · Y keyboard · L3+R3 off"
                         color: row.current ? "#99000000" : Theme.dim
                         elide: Text.ElideRight
                         font.family: Theme.font

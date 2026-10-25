@@ -27,8 +27,10 @@ TV remote or keyboard. Apps open fullscreen on top, and Home brings you back.
   press both sticks (L3+R3): the left stick moves the pointer (hold the right trigger for
   slow, precise movement), the right stick scrolls,
   A/X click left/right, B is Escape, the D-pad arrow keys, Start Enter, Select Tab, LB
-  Backspace, RB Space, and Y opens the on-screen keyboard to type into the app. It uses a
-  virtual uinput device (`session/70-x27-tv-uinput.rules` gives the logged-in user access)
+  Backspace, RB Space, and Y opens a full keyboard at the bottom that types into the app as
+  you press each key (it never takes the app's focus): the D-pad or left stick moves, A
+  presses, X is Shift, B or Y closes it. Shift, Ctrl and Alt hold for the next key (Ctrl+L),
+  Caps stays on. It uses a virtual uinput device (`session/70-x27-tv-uinput.rules` gives the logged-in user access)
 - **All Apps**: every installed desktop app in a grid
 - Missing Flatpaks show a **Get** badge, and pressing OK installs them from Flathub
 

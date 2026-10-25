@@ -2,9 +2,13 @@
 # device the compositor treats like any other mouse/keyboard. The left stick moves the
 # pointer (hold the right trigger for slow, precise movement), the right stick scrolls,
 # A/X click left/right (A held drags; buttons by their Xbox letters), B is Escape, the
-# D-pad arrow keys, Start Enter, Select Tab, LB Backspace, RB Space, and Y asks for the
-# on-screen keyboard, whose text is then typed here. Gamepad events arrive on the gamepad
-# thread (handle/tick); typing comes from the UI thread, hence the lock.
+# D-pad arrow keys, Start Enter, Select Tab, LB Backspace, RB Space, and Y opens the typing
+# keyboard (TypeKeyboard.qml). While it's open the left stick and D-pad move across its keys
+# (sent to it as typingKey), A presses one, X is Shift, B/Y close it, and each key is typed
+# into the app straight away. Gamepad events arrive on the gamepad thread (handle/tick);
+# typing comes from the UI thread, hence the lock.
+
+import time
 
 import threading
 from pathlib import Path
@@ -21,7 +25,7 @@ PRECISION = 0.35    # speed factor while the right trigger is held
 CURVE = 1.6         # stick response: 1 is linear, higher is finer near the center
 SCROLL = 14.0       # wheel notches/s at full tilt
 DEADZONE = 0.15
-TYPE_DELAY_MS = 300  # lets focus get back to the app after the keyboard closes
+REPEAT_DELAY, REPEAT_RATE = 0.28, 0.07  # typing keyboard navigation, as in the launcher
 
 # Xbox drivers report face buttons by letter, and BTN_X/BTN_Y are the same codes as
 # BTN_NORTH/BTN_WEST, so on those pads "north" is the left button (X) and "west" the top (Y).
@@ -32,22 +36,16 @@ if UInput:
     BUTTONS = {e.BTN_SOUTH: e.BTN_LEFT, e.BTN_WEST: e.BTN_RIGHT, e.BTN_EAST: e.KEY_ESC,
                e.BTN_START: e.KEY_ENTER, e.BTN_SELECT: e.KEY_TAB, e.BTN_TL: e.KEY_BACKSPACE, e.BTN_TR: e.KEY_SPACE}
     HAT = {(e.ABS_HAT0X, -1): e.KEY_LEFT, (e.ABS_HAT0X, 1): e.KEY_RIGHT, (e.ABS_HAT0Y, -1): e.KEY_UP, (e.ABS_HAT0Y, 1): e.KEY_DOWN}
-
-    # Characters the on-screen keyboard can produce, on the US layout the session uses:
-    # (key, shift).
-    CHARS = {" ": (e.KEY_SPACE, False)}
-    for ch in "abcdefghijklmnopqrstuvwxyz":
-        CHARS[ch] = (getattr(e, f"KEY_{ch.upper()}"), False)
-        CHARS[ch.upper()] = (getattr(e, f"KEY_{ch.upper()}"), True)
-    for plain, shifted in zip("1234567890", "!@#$%^&*()"):
-        key = getattr(e, f"KEY_{plain}")
-        CHARS[plain], CHARS[shifted] = (key, False), (key, True)
-    for plain, shifted, key in (("-", "_", e.KEY_MINUS), ("=", "+", e.KEY_EQUAL), ("[", "{", e.KEY_LEFTBRACE),
-                                ("]", "}", e.KEY_RIGHTBRACE), ("\\", "|", e.KEY_BACKSLASH), (";", ":", e.KEY_SEMICOLON),
-                                ("'", '"', e.KEY_APOSTROPHE), (",", "<", e.KEY_COMMA), (".", ">", e.KEY_DOT),
-                                ("/", "?", e.KEY_SLASH), ("`", "~", e.KEY_GRAVE)):
-        CHARS[plain], CHARS[shifted] = (key, False), (key, True)
-    KEYS = sorted({k for k, _ in CHARS.values()} | set(BUTTONS.values()) | set(HAT.values()) | {e.KEY_LEFTSHIFT})
+    # While typing: buttons that type straight away, and ones the on-screen keyboard handles.
+    TYPING_KEYS = {e.BTN_START: e.KEY_ENTER, e.BTN_SELECT: e.KEY_TAB, e.BTN_TL: e.KEY_BACKSPACE, e.BTN_TR: e.KEY_SPACE}
+    TYPING_ACTIONS = {e.BTN_SOUTH: "press", e.BTN_WEST: "shift", e.BTN_EAST: "close", e.BTN_NORTH: "close"}
+    MODIFIERS = {"shift": e.KEY_LEFTSHIFT, "ctrl": e.KEY_LEFTCTRL, "alt": e.KEY_LEFTALT, "super": e.KEY_LEFTMETA}
+    # Every key the typing keyboard has (it names them as in evdev, e.g. "KEY_A").
+    TYPABLE = [getattr(e, f"KEY_{n}") for n in (*"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+               "MINUS", "EQUAL", "LEFTBRACE", "RIGHTBRACE", "BACKSLASH", "SEMICOLON", "APOSTROPHE", "COMMA",
+               "DOT", "SLASH", "GRAVE", "SPACE", "ESC", "TAB", "ENTER", "BACKSPACE", "DELETE", "HOME", "END",
+               "UP", "DOWN", "LEFT", "RIGHT")]
+    KEYS = sorted(set(TYPABLE) | set(BUTTONS.values()) | set(HAT.values()) | set(MODIFIERS.values()))
 
 
 def curve(v):
@@ -55,9 +53,14 @@ def curve(v):
     return a ** CURVE * (1 if v > 0 else -1)
 
 
+def _stick_dir(v):
+    return -1 if v < -0.55 else 1 if v > 0.55 else 0
+
+
 class MouseMode(QObject):
     changed = Signal()
     typeRequested = Signal()
+    typingKey = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -70,6 +73,9 @@ class MouseMode(QObject):
         self._trigger = 0.0
         self._letters = {}
         self._active = False
+        self._typing = False
+        self._nav = None
+        self._next_nav = 0.0
 
     @staticmethod
     def supported():
@@ -91,6 +97,21 @@ class MouseMode(QObject):
     def set_active(self, on):
         if on != self._active:
             self._active = on
+            if not on:
+                self.set_typing(False)
+            self.changed.emit()
+
+    # The typing keyboard is open: the pads drive it instead of the pointer.
+    @Property(bool, notify=changed)
+    def typing(self):
+        return self._typing
+
+    @Slot(bool)
+    def set_typing(self, on):
+        on = bool(on and self._enabled and self._active)
+        if on != self._typing:
+            self.release_all()
+            self._typing = on
             self.changed.emit()
 
     @Slot(bool)
@@ -99,6 +120,7 @@ class MouseMode(QObject):
             on = False
         self._enabled = on
         if not on:
+            self._typing = False
             self.release_all()
         self.changed.emit()
 
@@ -128,8 +150,9 @@ class MouseMode(QObject):
         self._sticks.clear()
         self._hat.clear()
         self._trigger = 0.0
+        self._nav = None
         if self._dev:
-            self._emit([(e.EV_KEY, k, 0) for k in set(BUTTONS.values()) | set(HAT.values())])
+            self._emit([(e.EV_KEY, k, 0) for k in set(BUTTONS.values()) | set(HAT.values()) | set(TYPING_KEYS.values())])
 
     def _by_letter(self, dev):
         if dev.path not in self._letters:
@@ -145,7 +168,9 @@ class MouseMode(QObject):
         code = ev.code
         if ev.type == e.EV_KEY and code in (e.BTN_NORTH, e.BTN_WEST) and self._by_letter(dev):
             code = e.BTN_WEST if code == e.BTN_NORTH else e.BTN_NORTH
-        if ev.type == e.EV_KEY and code == e.BTN_NORTH:
+        if self._typing:
+            self._handle_typing(dev, ev, code)
+        elif ev.type == e.EV_KEY and code == e.BTN_NORTH:
             if ev.value == 1:
                 self.typeRequested.emit()
         elif ev.type == e.EV_KEY and code in BUTTONS and ev.value in (0, 1):
@@ -168,10 +193,41 @@ class MouseMode(QObject):
             info = dev.absinfo(ev.code)
             self._trigger = (ev.value - info.min) / ((info.max - info.min) or 1)
 
-    # Gamepad thread, every few ms: pointer motion and scrolling from the stick positions.
+    def _handle_typing(self, dev, ev, code):
+        if ev.type == e.EV_KEY and code in TYPING_KEYS and ev.value in (0, 1):
+            self._emit([(e.EV_KEY, TYPING_KEYS[code], ev.value)])
+        elif ev.type == e.EV_KEY and code in TYPING_ACTIONS and ev.value == 1:
+            self.typingKey.emit(TYPING_ACTIONS[code])
+        elif ev.type == e.EV_ABS and ev.code in (e.ABS_HAT0X, e.ABS_HAT0Y):
+            self._hat[ev.code] = ev.value
+        elif ev.type == e.EV_ABS and ev.code in (e.ABS_X, e.ABS_Y, e.ABS_RX, e.ABS_RY):
+            info = dev.absinfo(ev.code)
+            mid, span = (info.max + info.min) / 2, ((info.max - info.min) / 2) or 1
+            self._sticks[ev.code] = (ev.value - mid) / span
+
+    def _navigate(self):
+        s = self._sticks
+        x = self._hat.get(e.ABS_HAT0X) or _stick_dir(s.get(e.ABS_X, 0))
+        y = self._hat.get(e.ABS_HAT0Y) or _stick_dir(s.get(e.ABS_Y, 0))
+        direction = "left" if x < 0 else "right" if x > 0 else "up" if y < 0 else "down" if y > 0 else None
+        now = time.monotonic()
+        if direction != self._nav:
+            self._nav = direction
+            self._next_nav = now + REPEAT_DELAY
+        elif not direction or now < self._next_nav:
+            return
+        else:
+            self._next_nav = now + REPEAT_RATE
+        if direction:
+            self.typingKey.emit(direction)
+
+    # Gamepad thread, every few ms: pointer motion and scrolling from the stick positions
+    # (only scrolling while typing, where the left stick moves across the keyboard).
     def tick(self, dt):
         s = self._sticks
-        speed = SPEED * (PRECISION if self._trigger > 0.5 else 1)
+        if self._typing:
+            self._navigate()
+        speed = 0 if self._typing else SPEED * (PRECISION if self._trigger > 0.5 else 1)
         motion = (curve(s.get(e.ABS_X, 0)) * speed * dt, curve(s.get(e.ABS_Y, 0)) * speed * dt,
                   -curve(s.get(e.ABS_RY, 0)) * SCROLL * dt, curve(s.get(e.ABS_RX, 0)) * SCROLL * dt)
         out = []
@@ -186,20 +242,14 @@ class MouseMode(QObject):
         if out:
             self._emit(out)
 
-    @Slot(str)
-    def typeText(self, text):
-        QTimer.singleShot(TYPE_DELAY_MS, lambda: self._type(text))
-
-    def _type(self, text):
-        if not self._open():
+    # From the typing keyboard: tap one key ("KEY_A"), with the given modifiers held.
+    @Slot(str, "QVariantList")
+    def tapKey(self, name, mods):
+        if not UInput or getattr(e, name, None) not in TYPABLE or not self._open():
             return
-        for ch in text:
-            if ch not in CHARS:
-                continue
-            key, shift = CHARS[ch]
-            if shift:
-                self._emit([(e.EV_KEY, e.KEY_LEFTSHIFT, 1)])
-            self._emit([(e.EV_KEY, key, 1)])
-            self._emit([(e.EV_KEY, key, 0)])
-            if shift:
-                self._emit([(e.EV_KEY, e.KEY_LEFTSHIFT, 0)])
+        key = getattr(e, name)
+        held = [MODIFIERS[m] for m in mods if m in MODIFIERS]
+        self._emit([(e.EV_KEY, m, 1) for m in held])
+        self._emit([(e.EV_KEY, key, 1)])
+        self._emit([(e.EV_KEY, key, 0)])
+        self._emit([(e.EV_KEY, m, 0) for m in held])
