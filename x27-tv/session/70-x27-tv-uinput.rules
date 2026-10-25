@@ -1,0 +1,2 @@
+# Lets the logged-in seat user create virtual input devices, for X27 TV's gamepad mouse mode.
+KERNEL=="uinput", SUBSYSTEM=="misc", OPTIONS+="static_node=uinput", TAG+="uaccess"

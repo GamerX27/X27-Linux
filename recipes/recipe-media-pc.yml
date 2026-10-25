@@ -186,6 +186,7 @@ modules:
             && ln -sf /usr/share/x27-tv/bin/x27-tv-ctl /usr/bin/x27-tv-ctl \
             && ln -sf /usr/share/x27-tv/session/x27-tv-session /usr/bin/x27-tv-session \
             && install -m 644 /tmp/x27-tv/session/x27-tv.pam /etc/pam.d/x27-tv \
+            && install -m 644 /tmp/x27-tv/session/70-x27-tv-uinput.rules /usr/lib/udev/rules.d/ \
             && chmod 755 /usr/lib/systemd/system-generators/x27-tv-autologin \
             && systemctl set-default graphical.target
 

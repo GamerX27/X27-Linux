@@ -22,6 +22,7 @@ from .display import Display, apply_saved
 from .gamepad import Gamepad
 from .launcher import SELF_ID, Launcher, go_home
 from .network import Network
+from .padmouse import MouseMode
 from .pointer import Pointer
 from .prefs import IdleManager, Prefs
 from .system import System
@@ -118,6 +119,7 @@ def main():
     bluetooth = Bluetooth()
     updates = Updates(prefs)
     idle = IdleManager(prefs, args.session)
+    mouse = MouseMode()
     store.refresh()
 
     engine = QQmlApplicationEngine()
@@ -133,6 +135,7 @@ def main():
     ctx.setContextProperty("Network", network)
     ctx.setContextProperty("Bluetooth", bluetooth)
     ctx.setContextProperty("Updates", updates)
+    ctx.setContextProperty("Mouse", mouse)
     ctx.setContextProperty("idleSupported", idle.enabled)
     ctx.setContextProperty("startWindowed", args.windowed)
     engine.load(QUrl.fromLocalFile(str(ROOT / "qml/Main.qml")))
@@ -163,15 +166,38 @@ def main():
             window.requestActivate()
         window.goHome()
 
+    def type_into_app():
+        menu = window.property("quickMenu")
+        if menu is not None:
+            app_id = launcher.focused_app()
+            w = next((x for x in launcher.windows if x["appId"] == app_id), None)
+            menu.openKeyboard(w["name"] if w else "")
+
+    mouse.typeRequested.connect(type_into_app)
+
     pad = None
     if Gamepad.available():
-        pad = Gamepad()
+        pad = Gamepad(mouse if MouseMode.supported() else None)
         pad.key.connect(inject)
         pad.home.connect(home)
         pad.quick.connect(quick)
+        pad.mouseToggle.connect(mouse.toggle)
         menu = window.property("quickMenu")
+
+        # The pads drive the virtual mouse only with an app in front; in the launcher and the
+        # Quick Menu they navigate as usual.
+        def route():
+            overlay = menu is not None and menu.isVisible()
+            pad.set_grab(overlay)
+            on = mouse.enabled and not overlay and not window.isActive()
+            if pad.route_mouse and not on:
+                mouse.release_all()
+            pad.set_route_mouse(on)
+
         if menu is not None:
-            menu.visibleChanged.connect(lambda: pad.set_grab(menu.isVisible()))
+            menu.visibleChanged.connect(route)
+        window.activeChanged.connect(route)
+        mouse.changed.connect(route)
         pad.start()
 
     code = app.exec()

@@ -1,6 +1,8 @@
 # Gamepad input via evdev, with hotplug and key repeat. D-pad/stick/A/B/X/Y/Start are turned
 # into Qt keys for the launcher. The Guide button is a global Home, or held, the Quick Menu;
-# while that's open the pads are grabbed so the app behind it doesn't react too.
+# while that's open the pads are grabbed so the app behind it doesn't react too. In mouse mode
+# (padmouse.py; both sticks pressed toggles it) the pads drive a virtual mouse and keyboard
+# instead, whenever an app is in front.
 
 import select
 import time
@@ -32,9 +34,13 @@ class Gamepad(QThread):
     key = Signal(int)
     home = Signal()
     quick = Signal()
+    mouseToggle = Signal()
 
-    def __init__(self):
+    def __init__(self, mouse=None):
         super().__init__()
+        self.mouse = mouse
+        self.route_mouse = False
+        self.sticks_down = set()
         self.devices = {}
         self.axes = {}
         self.held = None
@@ -67,15 +73,19 @@ class Gamepad(QThread):
     def set_grab(self, on):
         self.want_grab = on
 
+    def set_route_mouse(self, on):
+        self.route_mouse = bool(on and self.mouse)
+
     def _apply_grab(self):
+        want = self.want_grab or self.route_mouse
         for fd, dev in self.devices.items():
-            if self.want_grab == (fd in self.grabbed):
+            if want == (fd in self.grabbed):
                 continue
             try:
-                dev.grab() if self.want_grab else dev.ungrab()
+                dev.grab() if want else dev.ungrab()
             except OSError:
                 pass
-            (self.grabbed.add if self.want_grab else self.grabbed.discard)(fd)
+            (self.grabbed.add if want else self.grabbed.discard)(fd)
 
     def _axis(self, dev, code, value):
         info = dev.absinfo(code)
@@ -94,12 +104,19 @@ class Gamepad(QThread):
         return DIRS.get((x, y))
 
     def _handle(self, dev, ev):
+        if ev.type == ecodes.EV_KEY and ev.code in (ecodes.BTN_THUMBL, ecodes.BTN_THUMBR):
+            (self.sticks_down.add if ev.value else self.sticks_down.discard)(ev.code)
+            if ev.value == 1 and len(self.sticks_down) == 2:
+                self.mouseToggle.emit()
+            return
         if ev.type == ecodes.EV_KEY and ev.code == ecodes.BTN_MODE:
             if ev.value == 1:
                 self.guide_since = time.monotonic()
             elif ev.value == 0 and self.guide_since is not None:
                 self.guide_since = None
                 self.home.emit()
+        elif self.route_mouse:
+            self.mouse.handle(dev, ev)
         elif ev.type == ecodes.EV_KEY and ev.value == 1:
             if ev.code in self.buttons:
                 self.key.emit(self.buttons[ev.code])
@@ -114,13 +131,17 @@ class Gamepad(QThread):
 
     def run(self):
         last_scan = 0.0
+        last_tick = time.monotonic()
         while not self.isInterruptionRequested():
             now = time.monotonic()
+            if self.route_mouse:
+                self.mouse.tick(now - last_tick)
+            last_tick = now
             if now - last_scan > 2:
                 self._rescan()
                 last_scan = now
             try:
-                ready, _, _ = select.select(list(self.devices), [], [], 0.05)
+                ready, _, _ = select.select(list(self.devices), [], [], 0.008 if self.route_mouse else 0.05)
             except (OSError, ValueError):
                 ready = []
             for fd in ready:

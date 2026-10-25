@@ -22,6 +22,11 @@ TV remote or keyboard. Apps open fullscreen on top, and Home brings you back.
 - **Quick Menu**: inside any app, hold the gamepad's Guide button (or press Super+Q) for a
   panel over the app: volume, audio output, Home, Close App, Settings and Sleep. The app is
   dimmed behind it and doesn't see the gamepad while it's open. A short Guide press goes Home
+- **Gamepad as Mouse**: for apps without gamepad support. Turn it on in the Quick Menu or
+  press both sticks (L3+R3): the left stick moves the pointer, the right stick scrolls,
+  A/X click left/right, B is Escape, the D-pad arrow keys, Start Enter, Select Tab, LB
+  Backspace, RB Space, and Y opens the on-screen keyboard to type into the app. It uses a
+  virtual uinput device (`session/70-x27-tv-uinput.rules` gives the logged-in user access)
 - **All Apps**: every installed desktop app in a grid
 - Missing Flatpaks show a **Get** badge, and pressing OK installs them from Flathub
 

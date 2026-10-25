@@ -1,5 +1,6 @@
-// TV text entry: a d-pad navigable keyboard with shift, symbols, space, backspace and a
-// password reveal toggle. A physical or remote keyboard can type into it directly.
+// TV text entry: a compact d-pad navigable keyboard docked to the bottom edge, so what's
+// behind it (an app's text field, the settings list) stays in view. Shift, symbols, space,
+// backspace and a password reveal toggle; a physical or remote keyboard can type into it too.
 import QtQuick
 import QtQuick.Effects
 
@@ -106,53 +107,62 @@ FocusScope {
         e.accepted = true
     }
 
-    Rectangle { anchors.fill: parent; color: "#b3000000" }
+    Rectangle {
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        height: panel.height + 160 * Theme.s
+        gradient: Gradient {
+            GradientStop { position: 0; color: "transparent" }
+            GradientStop { position: 1; color: "#cc000000" }
+        }
+    }
 
     Rectangle {
         id: panel
-        anchors.centerIn: parent
-        width: grid.width + 80 * Theme.s
-        height: col0.implicitHeight + 80 * Theme.s
-        radius: 36 * Theme.s
-        color: "#f21c1c1e"
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: parent.height - height - (kb.shown ? 28 * Theme.s : -20 * Theme.s)
+        width: grid.width + 48 * Theme.s
+        height: col0.implicitHeight + 40 * Theme.s
+        radius: 28 * Theme.s
+        color: "#f51c1c1e"
         border.color: Theme.glassEdge
         border.width: Math.max(1, Theme.s)
-        scale: kb.shown ? 1 : 0.96
-        Behavior on scale { NumberAnimation { duration: Theme.med; easing.type: Easing.OutCubic } }
+        Behavior on y { NumberAnimation { duration: Theme.med; easing.type: Easing.OutCubic } }
 
         Column {
             id: col0
             anchors.centerIn: parent
-            spacing: 24 * Theme.s
-
-            Text {
-                text: kb.title
-                color: Theme.text
-                font.family: Theme.font
-                font.pixelSize: 34 * Theme.s
-                font.weight: Font.DemiBold
-            }
+            spacing: 14 * Theme.s
 
             Rectangle {
-                width: grid.width; height: 76 * Theme.s
-                radius: 16 * Theme.s
+                width: grid.width; height: 56 * Theme.s
+                radius: 12 * Theme.s
                 color: "#2c2c2e"
                 border.color: "#0a84ff"
                 border.width: 2 * Theme.s
                 Text {
-                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 24 * Theme.s }
+                    id: titleText
+                    anchors { left: parent.left; leftMargin: 18 * Theme.s; verticalCenter: parent.verticalCenter }
+                    width: Math.min(implicitWidth, parent.width * 0.4)
+                    text: kb.title
+                    color: Theme.dim
+                    elide: Text.ElideRight
+                    font.family: Theme.font
+                    font.pixelSize: 20 * Theme.s
+                }
+                Text {
+                    anchors { left: titleText.right; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 16 * Theme.s; rightMargin: 18 * Theme.s }
                     text: (kb.password && !kb.reveal ? "•".repeat(kb.text.length) : kb.text) + "▏"
                     color: Theme.text
                     font.family: Theme.font
-                    font.pixelSize: 30 * Theme.s
+                    font.pixelSize: 24 * Theme.s
                     elide: Text.ElideLeft
                 }
             }
 
             Column {
                 id: grid
-                spacing: 10 * Theme.s
-                readonly property real unit: 84 * Theme.s
+                spacing: 8 * Theme.s
+                readonly property real unit: 62 * Theme.s
 
                 Repeater {
                     model: kb.keys
@@ -160,7 +170,7 @@ FocusScope {
                         required property var modelData
                         required property int index
                         readonly property int r: index
-                        spacing: 10 * Theme.s
+                        spacing: 8 * Theme.s
 
                         Repeater {
                             model: parent.modelData
@@ -169,9 +179,9 @@ FocusScope {
                                 required property int index
                                 readonly property bool current: kb.row === parent.r && kb.col === index
                                 readonly property bool on: (modelData.act === "shift" && kb.shift) || (modelData.act === "reveal" && kb.reveal)
-                                width: grid.unit * modelData.w + 10 * Theme.s * (modelData.w - 1)
-                                height: 72 * Theme.s
-                                radius: 14 * Theme.s
+                                width: grid.unit * modelData.w + 8 * Theme.s * (modelData.w - 1)
+                                height: 54 * Theme.s
+                                radius: 11 * Theme.s
                                 color: current ? Theme.focusFill : modelData.accent ? "#0a84ff" : on ? "#636366" : "#3a3a3c"
                                 scale: current ? 1.08 : 1
                                 z: current ? 1 : 0
@@ -180,7 +190,7 @@ FocusScope {
                                     anchors.centerIn: parent
                                     visible: !!parent.modelData.icon
                                     name: parent.modelData.icon || ""
-                                    size: 30 * Theme.s
+                                    size: 24 * Theme.s
                                     color: parent.current ? Theme.focusText : Theme.text
                                 }
                                 Text {
@@ -188,7 +198,7 @@ FocusScope {
                                     text: parent.modelData.label
                                     color: parent.current ? Theme.focusText : Theme.text
                                     font.family: Theme.font
-                                    font.pixelSize: (parent.modelData.w > 1 ? 24 : 30) * Theme.s
+                                    font.pixelSize: (parent.modelData.w > 1 ? 19 : 24) * Theme.s
                                     font.weight: Font.Medium
                                 }
                                 MouseArea {

@@ -1,6 +1,7 @@
 // In-app quick menu: a panel over whatever app is open, on labwc's overlay layer, with the app
-// dimmed behind it. Opened by holding the gamepad's Guide button or Super+Q.
-// Volume, audio output, and Home / Close App / Settings / Sleep; Back closes it.
+// dimmed behind it. Opened by holding the gamepad's Guide button or Super+Q. Volume, audio
+// output, Gamepad as Mouse, and Home / Close App / Settings / Sleep; Back closes it. The same
+// window hosts the on-screen keyboard that types into the app in mouse mode (Y).
 import QtQuick
 import QtQuick.Window
 import org.kde.layershell 1.0 as LayerShell
@@ -21,6 +22,7 @@ Window {
     readonly property var items: [
         { kind: "volume", label: "Volume" },
         ...(Audio.sinks.length > 1 ? [{ kind: "output", label: "Output" }] : []),
+        ...(Mouse.available ? [{ kind: "mouse", label: "Gamepad as Mouse" }] : []),
         { kind: "action", label: "Home", icon: "squares-four", run: () => qm.homeRequested() },
         ...(appId ? [{ kind: "action", label: "Close " + (appName || "App"), icon: "x-circle", confirm: "Press again to close",
                        run: () => { Launcher.closeApp(qm.appId); qm.homeRequested() } }] : []),
@@ -30,12 +32,22 @@ Window {
 
     function open(id, name) {
         appId = id; appName = name; index = 0; confirming = -1
+        keyboard.shown = false
         System.refresh(); Audio.refresh()
         visible = true
         requestActivate()
         panel.forceActiveFocus()
     }
-    function close() { visible = false }
+    function close() { keyboard.shown = false; visible = false }
+
+    // Mouse mode's Y: type text into the app in front. The keyboard needs focus while open;
+    // closing it hands focus back to the app, then the text is typed there.
+    function openKeyboard(name) {
+        appName = name
+        visible = true
+        requestActivate()
+        keyboard.open("Type into " + (name || "the app"), false, text => { if (text) Mouse.typeText(text) })
+    }
     function toggle(id, name) { if (visible) close(); else open(id, name) }
 
     function cycleOutput(d) {
@@ -48,6 +60,7 @@ Window {
     function activate(it) {
         if (it.kind === "volume") { System.toggleMute(); return }
         if (it.kind === "output") { cycleOutput(1); return }
+        if (it.kind === "mouse") { Mouse.toggle(); if (Mouse.enabled) close(); return }
         if (it.confirm && confirming !== index) { confirming = index; return }
         confirming = -1
         close()
@@ -72,14 +85,22 @@ Window {
 
     Rectangle {
         anchors.fill: parent
+        visible: !keyboard.shown
         color: "#73000000"
         MouseArea { anchors.fill: parent; onClicked: qm.close() }
+    }
+
+    OnScreenKeyboard {
+        id: keyboard
+        anchors.fill: parent
+        onFinished: qm.close()
     }
 
     Item {
         id: panel
         anchors { top: parent.top; bottom: parent.bottom; right: parent.right; margins: 32 * Theme.s }
         width: 560 * Theme.s
+        visible: !keyboard.shown
         focus: true
 
         Keys.onPressed: (e) => {
@@ -141,8 +162,9 @@ Window {
                     required property int index
                     readonly property bool current: qm.index === index
                     readonly property bool slider: modelData.kind === "volume"
+                    readonly property bool mouse: modelData.kind === "mouse"
                     width: content.width
-                    height: (slider ? 112 : 76) * Theme.s
+                    height: (slider ? 112 : mouse ? 104 : 76) * Theme.s
                     radius: 20 * Theme.s
                     color: current ? Theme.focusFill : "#14ffffff"
                     scale: current ? 1.03 : 1
@@ -171,17 +193,28 @@ Window {
 
                     Text {
                         anchors { left: parent.left; leftMargin: (row.modelData.icon ? 72 : 28) * Theme.s; right: parent.right; rightMargin: 28 * Theme.s
-                                  top: parent.top; topMargin: (row.slider ? 18 : 0) * Theme.s }
-                        height: row.slider ? implicitHeight : parent.height
+                                  top: parent.top; topMargin: (row.slider || row.mouse ? 18 : 0) * Theme.s }
+                        height: row.slider || row.mouse ? implicitHeight : parent.height
                         verticalAlignment: Text.AlignVCenter
                         elide: Text.ElideRight
                         text: row.slider ? "Volume" + (System.muted ? "  ·  Muted" : "  ·  " + Math.round(System.volume * 100) + "%")
                             : row.modelData.kind === "output" ? "‹  " + (qm.sink ? qm.sink.name : "Output") + "  ›"
+                            : row.mouse ? "Gamepad as Mouse  ·  " + (Mouse.enabled ? "On" : "Off")
                             : (qm.confirming === row.index ? row.modelData.confirm : row.modelData.label)
                         color: row.current ? Theme.focusText : Theme.text
                         font.family: Theme.font
                         font.pixelSize: 26 * Theme.s
                         font.weight: row.current ? Font.DemiBold : Font.Normal
+                    }
+
+                    Text {
+                        visible: row.mouse
+                        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 28 * Theme.s; bottomMargin: 16 * Theme.s }
+                        text: "A click · X right-click · Y type · L3+R3 off"
+                        color: row.current ? "#99000000" : Theme.dim
+                        elide: Text.ElideRight
+                        font.family: Theme.font
+                        font.pixelSize: 18 * Theme.s
                     }
 
                     Rectangle {

@@ -10,6 +10,7 @@ SHARE="$PREFIX/share/x27-tv"
 SESSIONS="$PREFIX/share/wayland-sessions"
 UNIT=/etc/systemd/system/x27-tv.service
 PAM=/etc/pam.d/x27-tv
+UDEV_RULE=/etc/udev/rules.d/70-x27-tv-uinput.rules
 OLD_SDDM_CONF=/etc/sddm.conf.d/x27-tv.conf
 SRC="$(cd "$(dirname "$0")" && pwd)"
 TARGET_USER="${SUDO_USER:-}"
@@ -81,7 +82,7 @@ if (( UNINSTALL )); then
     remove_autologin
     remove_old_sddm
     rm -rf "$SHARE" "$PREFIX/bin/x27-tv" "$PREFIX/bin/x27-tv-ctl" "$PREFIX/bin/x27-tv-session" \
-        "$SESSIONS/x27-tv.desktop"
+        "$SESSIONS/x27-tv.desktop" "$UDEV_RULE"
     echo "x27-tv removed (packages were left installed)."
     exit 0
 fi
@@ -124,6 +125,8 @@ install_files() {
     ln -sf "$SHARE/bin/x27-tv-ctl" "$PREFIX/bin/x27-tv-ctl"
     ln -sf "$SHARE/session/x27-tv-session" "$PREFIX/bin/x27-tv-session"
     install -m 644 "$SRC/session/x27-tv.desktop" "$SESSIONS/x27-tv.desktop"
+    install -m 644 "$SRC/session/70-x27-tv-uinput.rules" "$UDEV_RULE"
+    udevadm control --reload 2>/dev/null && udevadm trigger --sysname-match=uinput 2>/dev/null || true
     if command -v restorecon >/dev/null; then
         restorecon -R "$SHARE" "$SESSIONS" "$PREFIX/bin" 2>/dev/null || true
     fi
