@@ -1,5 +1,6 @@
 // Full-bleed hero behind the row: accent gradient (or hero image) with slow Ken Burns
 // drift, a large blurred icon, and the focused app's title and tagline that crossfade on change.
+// The drift only runs while the launcher is in front, so it doesn't render behind apps.
 import QtQuick
 import QtQuick.Effects
 
@@ -39,11 +40,13 @@ Item {
         width: parent.width * 1.15; height: parent.height * 1.15
 
         SequentialAnimation on scale {
+            running: shelf.Window.active
             loops: Animation.Infinite
             NumberAnimation { from: 1; to: 1.07; duration: 18000; easing.type: Easing.InOutSine }
             NumberAnimation { from: 1.07; to: 1; duration: 18000; easing.type: Easing.InOutSine }
         }
         SequentialAnimation on anchors.horizontalCenterOffset {
+            running: shelf.Window.active
             loops: Animation.Infinite
             NumberAnimation { from: -30 * Theme.s; to: 30 * Theme.s; duration: 23000; easing.type: Easing.InOutSine }
             NumberAnimation { from: 30 * Theme.s; to: -30 * Theme.s; duration: 23000; easing.type: Easing.InOutSine }
@@ -78,7 +81,7 @@ Item {
         visible: !shelf.shown.hero
         layer.enabled: true
         layer.effect: MultiEffect { blurEnabled: true; blur: 1; blurMax: 64; opacity: 0.4; saturation: 0.3 }
-        RotationAnimation on rotation { from: -6; to: 6; duration: 20000; loops: Animation.Infinite; easing.type: Easing.InOutSine }
+        RotationAnimation on rotation { running: shelf.Window.active; from: -6; to: 6; duration: 20000; loops: Animation.Infinite; easing.type: Easing.InOutSine }
     }
 
     Rectangle {
@@ -143,7 +146,7 @@ Item {
                 radius: 14 * Theme.s
                 color: Theme.focusFill
                 scale: shelf.expanded ? 1.06 : 1
-                Behavior on scale { SpringAnimation { spring: 4; damping: 0.3 } }
+                Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
                 Text {
                     id: openLabel
                     anchors.centerIn: parent

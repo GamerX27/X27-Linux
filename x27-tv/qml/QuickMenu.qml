@@ -1,7 +1,8 @@
 // In-app quick menu: a panel over whatever app is open, on labwc's overlay layer, with the app
-// dimmed behind it. Opened by holding the gamepad's Guide button or Super+Q. Volume, audio
-// output, Gamepad as Mouse, and Home / Close App / Settings / Sleep; Back closes it. The same
-// window hosts the on-screen keyboard that types into the app in mouse mode (Y).
+// dimmed and paused (frozen) behind it. Opened by Guide/Home or Super+Q in an app: Home, Exit
+// App, volume, audio output, Gamepad as Mouse, Settings, Sleep; Guide or Back closes it. The
+// same window hosts the on-screen keyboard that types into the app in mouse mode (Y), which
+// doesn't pause the app.
 import QtQuick
 import QtQuick.Window
 import org.kde.layershell 1.0 as LayerShell
@@ -20,12 +21,12 @@ Window {
 
     readonly property var sink: Audio.sinks.find(s => s.default) || null
     readonly property var items: [
+        { kind: "action", label: "Home", icon: "squares-four", run: () => qm.homeRequested() },
+        ...(appId ? [{ kind: "action", label: "Exit " + (appName || "App"), icon: "x-circle",
+                       run: () => { Launcher.closeApp(qm.appId); qm.homeRequested() } }] : []),
         { kind: "volume", label: "Volume" },
         ...(Audio.sinks.length > 1 ? [{ kind: "output", label: "Output" }] : []),
         ...(Mouse.available ? [{ kind: "mouse", label: "Gamepad as Mouse" }] : []),
-        { kind: "action", label: "Home", icon: "squares-four", run: () => qm.homeRequested() },
-        ...(appId ? [{ kind: "action", label: "Close " + (appName || "App"), icon: "x-circle", confirm: "Press again to close",
-                       run: () => { Launcher.closeApp(qm.appId); qm.homeRequested() } }] : []),
         { kind: "action", label: "Settings", icon: "gear-six", run: () => qm.settingsRequested() },
         { kind: "action", label: "Sleep", icon: "moon", run: () => System.suspend() }
     ]
@@ -33,12 +34,17 @@ Window {
     function open(id, name) {
         appId = id; appName = name; index = 0; confirming = -1
         keyboard.shown = false
-        System.refresh(); Audio.refresh()
         visible = true
         requestActivate()
         panel.forceActiveFocus()
+        Launcher.pauseApp(id)
+        System.refresh(); Audio.refresh()
     }
-    function close() { keyboard.shown = false; visible = false }
+    function close() {
+        keyboard.shown = false
+        visible = false
+        Launcher.resumeApp(appId)
+    }
 
     // Mouse mode's Y: type text into the app in front. The keyboard needs focus while open;
     // closing it hands focus back to the app, then the text is typed there.
@@ -48,7 +54,6 @@ Window {
         requestActivate()
         keyboard.open("Type into " + (name || "the app"), false, text => { if (text) Mouse.typeText(text) })
     }
-    function toggle(id, name) { if (visible) close(); else open(id, name) }
 
     function cycleOutput(d) {
         const sinks = Audio.sinks
@@ -169,7 +174,7 @@ Window {
                     color: current ? Theme.focusFill : "#14ffffff"
                     scale: current ? 1.03 : 1
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
-                    Behavior on scale { SpringAnimation { spring: 4; damping: 0.3 } }
+                    Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
 
                     MouseArea {
                         anchors.fill: parent
@@ -236,7 +241,7 @@ Window {
 
         Text {
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 36 * Theme.s }
-            text: "Back returns to " + (qm.appName || "the app")
+            text: "Guide or Back returns to " + (qm.appName || "the app")
             color: Theme.faint
             elide: Text.ElideRight
             font.family: Theme.font

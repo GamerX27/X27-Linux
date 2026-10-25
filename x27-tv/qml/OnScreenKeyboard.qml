@@ -185,7 +185,7 @@ FocusScope {
                                 color: current ? Theme.focusFill : modelData.accent ? "#0a84ff" : on ? "#636366" : "#3a3a3c"
                                 scale: current ? 1.08 : 1
                                 z: current ? 1 : 0
-                                Behavior on scale { SpringAnimation { spring: 5; damping: 0.3 } }
+                                Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
                                 Icon {
                                     anchors.centerIn: parent
                                     visible: !!parent.modelData.icon

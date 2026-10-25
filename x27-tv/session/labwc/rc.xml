@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <!-- labwc config for the x27-tv session: no decorations, every app maximized edge to edge,
-     Home/Super bring back the launcher, Super+Q opens the Quick Menu, no desktop menus. -->
+     Home, Super and Super+Q open the Quick Menu over an app (Home in the launcher), no desktop
+     menus. -->
 <labwc_config>
   <core>
     <decoration>server</decoration>
@@ -23,10 +24,10 @@
 
   <keyboard>
     <keybind key="Super_L" onRelease="yes">
-      <action name="Execute" command="sh -c '&quot;$X27TV_HOME/bin/x27-tv-ctl&quot; home'"/>
+      <action name="Execute" command="sh -c '&quot;$X27TV_HOME/bin/x27-tv-ctl&quot; quick'"/>
     </keybind>
     <keybind key="XF86HomePage">
-      <action name="Execute" command="sh -c '&quot;$X27TV_HOME/bin/x27-tv-ctl&quot; home'"/>
+      <action name="Execute" command="sh -c '&quot;$X27TV_HOME/bin/x27-tv-ctl&quot; quick'"/>
     </keybind>
     <keybind key="W-q">
       <action name="Execute" command="sh -c '&quot;$X27TV_HOME/bin/x27-tv-ctl&quot; quick'"/>

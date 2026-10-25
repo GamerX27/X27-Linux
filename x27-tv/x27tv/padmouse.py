@@ -1,6 +1,7 @@
 # Gamepad as mouse and keyboard, for apps that don't support a gamepad: a virtual uinput
 # device the compositor treats like any other mouse/keyboard. The left stick moves the
-# pointer, the right stick scrolls, A/X click left/right (A held drags), B is Escape, the
+# pointer (hold the right trigger for slow, precise movement), the right stick scrolls,
+# A/X click left/right (A held drags), B is Escape, the
 # D-pad arrow keys, Start Enter, Select Tab, LB Backspace, RB Space, and Y asks for the
 # on-screen keyboard, whose text is then typed here. Gamepad events arrive on the gamepad
 # thread (handle/tick); typing comes from the UI thread, hence the lock.
@@ -14,7 +15,9 @@ try:
 except ImportError:
     UInput = None
 
-SPEED = 1500.0      # pointer px/s at full tilt
+SPEED = 2400.0      # pointer px/s at full tilt
+PRECISION = 0.35    # speed factor while the right trigger is held
+CURVE = 1.6         # stick response: 1 is linear, higher is finer near the center
 SCROLL = 14.0       # wheel notches/s at full tilt
 DEADZONE = 0.15
 TYPE_DELAY_MS = 300  # lets focus get back to the app after the keyboard closes
@@ -43,7 +46,7 @@ if UInput:
 
 def curve(v):
     a = max(0.0, abs(v) - DEADZONE) / (1 - DEADZONE)
-    return a * a * (1 if v > 0 else -1)
+    return a ** CURVE * (1 if v > 0 else -1)
 
 
 class MouseMode(QObject):
@@ -58,6 +61,7 @@ class MouseMode(QObject):
         self._sticks = {}
         self._frac = [0.0, 0.0, 0.0, 0.0]
         self._hat = {}
+        self._trigger = 0.0
 
     @staticmethod
     def supported():
@@ -105,6 +109,7 @@ class MouseMode(QObject):
     def release_all(self):
         self._sticks.clear()
         self._hat.clear()
+        self._trigger = 0.0
         if self._dev:
             self._emit([(e.EV_KEY, k, 0) for k in set(BUTTONS.values()) | set(HAT.values())])
 
@@ -129,11 +134,15 @@ class MouseMode(QObject):
             info = dev.absinfo(ev.code)
             mid, span = (info.max + info.min) / 2, ((info.max - info.min) / 2) or 1
             self._sticks[ev.code] = (ev.value - mid) / span
+        elif ev.type == e.EV_ABS and ev.code in (e.ABS_RZ, e.ABS_GAS):
+            info = dev.absinfo(ev.code)
+            self._trigger = (ev.value - info.min) / ((info.max - info.min) or 1)
 
     # Gamepad thread, every few ms: pointer motion and scrolling from the stick positions.
     def tick(self, dt):
         s = self._sticks
-        motion = (curve(s.get(e.ABS_X, 0)) * SPEED * dt, curve(s.get(e.ABS_Y, 0)) * SPEED * dt,
+        speed = SPEED * (PRECISION if self._trigger > 0.5 else 1)
+        motion = (curve(s.get(e.ABS_X, 0)) * speed * dt, curve(s.get(e.ABS_Y, 0)) * speed * dt,
                   -curve(s.get(e.ABS_RY, 0)) * SCROLL * dt, curve(s.get(e.ABS_RX, 0)) * SCROLL * dt)
         out = []
         for i, (code, v) in enumerate(zip((e.REL_X, e.REL_Y, e.REL_WHEEL, e.REL_HWHEEL), motion)):

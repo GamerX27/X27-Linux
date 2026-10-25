@@ -35,7 +35,7 @@ Item {
     Behavior on scale { SpringAnimation { spring: 4; damping: 0.32; epsilon: 0.002 } }
 
     NumberAnimation on wobble {
-        running: tile.focused
+        running: tile.focused && tile.Window.active
         from: 0; to: Math.PI * 2; duration: 6000; loops: Animation.Infinite
     }
 

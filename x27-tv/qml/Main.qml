@@ -41,13 +41,10 @@ Window {
         controlCenter.open()
     }
 
-    // Guide held or Super+Q: the Quick Menu over the app in front, or the Control Center when
-    // that's the launcher itself.
+    // Guide/Home with an app in front (decided in __main__.py): the Quick Menu over it.
     function quick(appId) {
-        if (active || !appId) { openControlCenter(); return }
-        if (!quickMenu) return
         const w = Launcher.windows.find(x => x.appId === appId)
-        quickMenu.toggle(appId, w ? w.name : "")
+        quickMenu.open(appId, w ? w.name : "")
     }
 
     function returnHome() {
@@ -119,7 +116,7 @@ Window {
                 color: root.mode === "top" ? Theme.focusFill : "#33ffffff"
                 scale: root.mode === "top" ? 1.15 : 1
                 Behavior on color { ColorAnimation { duration: Theme.fast } }
-                Behavior on scale { SpringAnimation { spring: 4; damping: 0.3 } }
+                Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
 
                 Icon {
                     anchors.centerIn: parent
@@ -171,8 +168,8 @@ Window {
 
     ParallelAnimation {
         id: returnAnim
-        NumberAnimation { target: scene; property: "scale"; from: 1.05; to: 1; duration: 520; easing.type: Easing.OutCubic }
-        NumberAnimation { target: scene; property: "opacity"; from: 0; to: 1; duration: 420; easing.type: Easing.OutCubic }
+        NumberAnimation { target: scene; property: "scale"; from: 1.03; to: 1; duration: 240; easing.type: Easing.OutCubic }
+        NumberAnimation { target: scene; property: "opacity"; from: 0; to: 1; duration: 200; easing.type: Easing.OutCubic }
     }
 
     Item {

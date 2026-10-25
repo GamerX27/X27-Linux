@@ -169,7 +169,7 @@ FocusScope {
                     color: current ? Theme.focusFill : "#14ffffff"
                     scale: current ? 1.03 : 1
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
-                    Behavior on scale { SpringAnimation { spring: 4; damping: 0.3 } }
+                    Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
 
                     MouseArea {
                         anchors.fill: parent

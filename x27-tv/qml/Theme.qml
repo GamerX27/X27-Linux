@@ -26,7 +26,7 @@ QtObject {
     readonly property real gutter: 96 * s
     readonly property real focusScale: 1.14
 
-    readonly property int fast: 160
+    readonly property int fast: 100
     readonly property int med: 320
     readonly property int slow: 700
 }

@@ -1,6 +1,6 @@
 # Gamepad input via evdev, with hotplug and key repeat. D-pad/stick/A/B/X/Y/Start are turned
-# into Qt keys for the launcher. The Guide button is a global Home, or held, the Quick Menu;
-# while that's open the pads are grabbed so the app behind it doesn't react too. In mouse mode
+# into Qt keys for the launcher. The Guide button (on press) opens the Quick Menu over an app,
+# or goes Home in the launcher; while the menu is open the pads are grabbed. In mouse mode
 # (padmouse.py; both sticks pressed toggles it) the pads drive a virtual mouse and keyboard
 # instead, whenever an app is in front.
 
@@ -26,14 +26,12 @@ BUTTONS = {
     "BTN_TR": Qt.Key_PageDown,
 }
 DIRS = {(-1, 0): Qt.Key_Left, (1, 0): Qt.Key_Right, (0, -1): Qt.Key_Up, (0, 1): Qt.Key_Down}
-REPEAT_DELAY, REPEAT_RATE = 0.40, 0.11
-GUIDE_HOLD = 0.45
+REPEAT_DELAY, REPEAT_RATE = 0.28, 0.07
 
 
 class Gamepad(QThread):
     key = Signal(int)
     home = Signal()
-    quick = Signal()
     mouseToggle = Signal()
 
     def __init__(self, mouse=None):
@@ -45,7 +43,7 @@ class Gamepad(QThread):
         self.axes = {}
         self.held = None
         self.next_repeat = 0.0
-        self.guide_since = None
+        self.rejected = set()
         self.want_grab = False
         self.grabbed = set()
         self.buttons = {getattr(ecodes, n): k for n, k in BUTTONS.items()} if evdev else {}
@@ -55,10 +53,12 @@ class Gamepad(QThread):
         return evdev is not None
 
     def _rescan(self):
+        # Only new paths are opened; ones that turned out not to be gamepads are remembered
+        # (and forgotten once they disappear, in case the number is reused).
+        paths = set(evdev.list_devices())
+        self.rejected &= paths
         known = {d.path for d in self.devices.values()}
-        for path in evdev.list_devices():
-            if path in known:
-                continue
+        for path in paths - known - self.rejected:
             try:
                 dev = evdev.InputDevice(path)
             except OSError:
@@ -68,6 +68,7 @@ class Gamepad(QThread):
                 self.devices[dev.fd] = dev
                 self._apply_grab()
             else:
+                self.rejected.add(path)
                 dev.close()
 
     def set_grab(self, on):
@@ -111,9 +112,6 @@ class Gamepad(QThread):
             return
         if ev.type == ecodes.EV_KEY and ev.code == ecodes.BTN_MODE:
             if ev.value == 1:
-                self.guide_since = time.monotonic()
-            elif ev.value == 0 and self.guide_since is not None:
-                self.guide_since = None
                 self.home.emit()
         elif self.route_mouse:
             self.mouse.handle(dev, ev)
@@ -155,9 +153,6 @@ class Gamepad(QThread):
                     self.axes.clear()
                     self.held = None
             self._apply_grab()
-            if self.guide_since is not None and time.monotonic() - self.guide_since >= GUIDE_HOLD:
-                self.guide_since = None
-                self.quick.emit()
             if self.held and time.monotonic() >= self.next_repeat:
                 self.key.emit(self.held)
                 self.next_repeat = time.monotonic() + REPEAT_RATE

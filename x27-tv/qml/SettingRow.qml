@@ -32,7 +32,7 @@ Item {
         border.color: "#0a84ff"
         scale: r.focused ? 1.02 : 1
         Behavior on color { ColorAnimation { duration: Theme.fast } }
-        Behavior on scale { SpringAnimation { spring: 4; damping: 0.3 } }
+        Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
     }
 
     Text {

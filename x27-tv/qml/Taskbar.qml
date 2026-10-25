@@ -93,7 +93,7 @@ Item {
                 scale: focused ? 1.06 : 1
                 z: focused ? 1 : 0
                 Behavior on color { ColorAnimation { duration: Theme.fast } }
-                Behavior on scale { SpringAnimation { spring: 4; damping: 0.3 } }
+                Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutQuad } }
 
                 Row {
                     id: pillRow

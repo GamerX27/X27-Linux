@@ -20,7 +20,7 @@ from .audio import Audio
 from .bluetooth import Bluetooth
 from .display import Display, apply_saved
 from .gamepad import Gamepad
-from .launcher import SELF_ID, Launcher, go_home
+from .launcher import SELF_ID, Launcher
 from .network import Network
 from .padmouse import MouseMode
 from .pointer import Pointer
@@ -152,24 +152,36 @@ def main():
         for kind in (QEvent.KeyPress, QEvent.KeyRelease):
             QGuiApplication.sendEvent(target, QKeyEvent(kind, key, Qt.NoModifier))
 
-    def quick():
-        window.quick(launcher.focused_app())
+    def home():
+        launcher.home()
+        window.requestActivate()
+        window.goHome()
+
+    # Guide/Home (gamepad, remote, Super, Super+Q): closes the Quick Menu if it's open, opens it
+    # over the app in front, or goes Home in the launcher.
+    def guide():
+        menu = window.property("quickMenu")
+        if menu is not None and menu.isVisible():
+            menu.close()
+        elif window.isActive():
+            window.goHome()
+        else:
+            app_id = launcher.front_app()
+            if app_id and menu is not None:
+                window.quick(app_id)
+            else:
+                home()
 
     remote = Remote()
-    remote.quick.connect(quick)
+    remote.quick.connect(guide)
     bus = QDBusConnection.sessionBus()
     if bus.isConnected() and bus.registerService("org.x27tv.Launcher"):
         bus.registerObject("/", remote, QDBusConnection.ExportAllSlots)
 
-    def home():
-        if not go_home():
-            window.requestActivate()
-        window.goHome()
-
     def type_into_app():
         menu = window.property("quickMenu")
         if menu is not None:
-            app_id = launcher.focused_app()
+            app_id = launcher.front_app()
             w = next((x for x in launcher.windows if x["appId"] == app_id), None)
             menu.openKeyboard(w["name"] if w else "")
 
@@ -179,8 +191,7 @@ def main():
     if Gamepad.available():
         pad = Gamepad(mouse if MouseMode.supported() else None)
         pad.key.connect(inject)
-        pad.home.connect(home)
-        pad.quick.connect(quick)
+        pad.home.connect(guide)
         pad.mouseToggle.connect(mouse.toggle)
         menu = window.property("quickMenu")
 
@@ -199,6 +210,9 @@ def main():
         window.activeChanged.connect(route)
         mouse.changed.connect(route)
         pad.start()
+
+    window.activeChanged.connect(lambda: launcher.set_background(not window.isActive()))
+    app.aboutToQuit.connect(launcher.resume_all)
 
     code = app.exec()
     if pad:
