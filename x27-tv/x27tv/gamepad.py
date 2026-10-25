@@ -1,5 +1,6 @@
 # Gamepad input via evdev, with hotplug and key repeat. D-pad/stick/A/B/X/Y/Start are turned
-# into Qt keys for the launcher, and the Guide button acts as a global Home.
+# into Qt keys for the launcher. The Guide button is a global Home, or held, the Quick Menu;
+# while that's open the pads are grabbed so the app behind it doesn't react too.
 
 import select
 import time
@@ -24,11 +25,13 @@ BUTTONS = {
 }
 DIRS = {(-1, 0): Qt.Key_Left, (1, 0): Qt.Key_Right, (0, -1): Qt.Key_Up, (0, 1): Qt.Key_Down}
 REPEAT_DELAY, REPEAT_RATE = 0.40, 0.11
+GUIDE_HOLD = 0.45
 
 
 class Gamepad(QThread):
     key = Signal(int)
     home = Signal()
+    quick = Signal()
 
     def __init__(self):
         super().__init__()
@@ -36,6 +39,9 @@ class Gamepad(QThread):
         self.axes = {}
         self.held = None
         self.next_repeat = 0.0
+        self.guide_since = None
+        self.want_grab = False
+        self.grabbed = set()
         self.buttons = {getattr(ecodes, n): k for n, k in BUTTONS.items()} if evdev else {}
 
     @staticmethod
@@ -54,8 +60,22 @@ class Gamepad(QThread):
             keys = dev.capabilities().get(ecodes.EV_KEY, [])
             if ecodes.BTN_SOUTH in keys:
                 self.devices[dev.fd] = dev
+                self._apply_grab()
             else:
                 dev.close()
+
+    def set_grab(self, on):
+        self.want_grab = on
+
+    def _apply_grab(self):
+        for fd, dev in self.devices.items():
+            if self.want_grab == (fd in self.grabbed):
+                continue
+            try:
+                dev.grab() if self.want_grab else dev.ungrab()
+            except OSError:
+                pass
+            (self.grabbed.add if self.want_grab else self.grabbed.discard)(fd)
 
     def _axis(self, dev, code, value):
         info = dev.absinfo(code)
@@ -74,10 +94,14 @@ class Gamepad(QThread):
         return DIRS.get((x, y))
 
     def _handle(self, dev, ev):
-        if ev.type == ecodes.EV_KEY and ev.value == 1:
-            if ev.code == ecodes.BTN_MODE:
+        if ev.type == ecodes.EV_KEY and ev.code == ecodes.BTN_MODE:
+            if ev.value == 1:
+                self.guide_since = time.monotonic()
+            elif ev.value == 0 and self.guide_since is not None:
+                self.guide_since = None
                 self.home.emit()
-            elif ev.code in self.buttons:
+        elif ev.type == ecodes.EV_KEY and ev.value == 1:
+            if ev.code in self.buttons:
                 self.key.emit(self.buttons[ev.code])
         elif ev.type == ecodes.EV_ABS and ev.code in (ecodes.ABS_X, ecodes.ABS_Y, ecodes.ABS_HAT0X, ecodes.ABS_HAT0Y):
             self.axes[ev.code] = self._axis(dev, ev.code, ev.value)
@@ -106,8 +130,13 @@ class Gamepad(QThread):
                         self._handle(dev, ev)
                 except OSError:
                     self.devices.pop(fd, None)
+                    self.grabbed.discard(fd)
                     self.axes.clear()
                     self.held = None
+            self._apply_grab()
+            if self.guide_since is not None and time.monotonic() - self.guide_since >= GUIDE_HOLD:
+                self.guide_since = None
+                self.quick.emit()
             if self.held and time.monotonic() >= self.next_repeat:
                 self.key.emit(self.held)
                 self.next_repeat = time.monotonic() + REPEAT_RATE

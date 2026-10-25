@@ -54,6 +54,7 @@ modules:
         - python3-pyside6
         - python3-evdev
         - qt6-qtwayland
+        - layer-shell-qt
         - qt6-qtsvg
         - qt6-qtdeclarative
         - pipewire
@@ -201,7 +202,8 @@ modules:
                  brave-browser x27-tv x27-tv-ctl x27-tv-session; do \
                  command -v "$cmd" >/dev/null || { echo "missing: $cmd" >&2; exit 1; }; \
                done \
-            && python3 -c 'import PySide6.QtQuick, evdev' \
+            && python3 -c 'import PySide6.QtQuick, PySide6.QtDBus, evdev' \
+            && test -f /usr/lib64/qt6/qml/org/kde/layershell/qmldir \
             && grep -q '@USER@' /usr/share/x27-tv/session/x27-tv.service \
             && grep -q '^browser = "brave-browser"' /usr/share/x27-tv/config/apps.toml \
             && ! rpm -q plasma-workspace

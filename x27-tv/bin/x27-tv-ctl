@@ -1,10 +1,11 @@
 #!/bin/sh
-# Session helper for labwc keybinds and swayidle: "home" shows the launcher,
-# "screen-off"/"screen-on" turn the outputs off and back on.
+# Session helper for labwc keybinds and swayidle: "home" shows the launcher, "quick" the
+# Quick Menu over the app in front, "screen-off"/"screen-on" turn the outputs off and back on.
 X27TV_HOME="${X27TV_HOME:-$(dirname "$(dirname "$(readlink -f "$0")")")}"
 case "$1" in
     home) PYTHONPATH="$X27TV_HOME" exec python3 -c "from x27tv.launcher import go_home; go_home()" ;;
+    quick) exec busctl --user call org.x27tv.Launcher / org.x27tv.Launcher QuickMenu ;;
     screen-off) PYTHONPATH="$X27TV_HOME" exec python3 -c "from x27tv.display import screen_off; screen_off()" ;;
     screen-on) PYTHONPATH="$X27TV_HOME" exec python3 -c "from x27tv.display import screen_on; screen_on()" ;;
-    *) echo "usage: x27-tv-ctl home|screen-off|screen-on" >&2; exit 2 ;;
+    *) echo "usage: x27-tv-ctl home|quick|screen-off|screen-on" >&2; exit 2 ;;
 esac

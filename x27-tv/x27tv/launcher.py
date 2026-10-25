@@ -93,6 +93,9 @@ class Launcher(QObject):
             return {"appId": app_id, "title": title, "name": e["name"], "icon": e["icon"]}
         return {"appId": app_id, "title": title, "name": title or app_id, "icon": resolve_icon(app_id)}
 
+    def focused_app(self):
+        return next((i for i in self._running if wlrctl("find", f"app_id:{i}", "state:focused")), "")
+
     @Slot(str)
     def focusApp(self, app_id):
         wlrctl("focus", f"app_id:{app_id}")

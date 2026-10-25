@@ -19,6 +19,9 @@ TV remote or keyboard. Apps open fullscreen on top, and Home brings you back.
   system build on Fedora Atomic (`rpm-ostree upgrade`, installed on the next restart) and
   updates system and user Flatpaks, keeping the TV from sleeping meanwhile
 - **Taskbar**: running apps along the bottom of the home screen. Switch to one or close it
+- **Quick Menu**: inside any app, hold the gamepad's Guide button (or press Super+Q) for a
+  panel over the app: volume, audio output, Home, Close App, Settings and Sleep. The app is
+  dimmed behind it and doesn't see the gamepad while it's open. A short Guide press goes Home
 - **All Apps**: every installed desktop app in a grid
 - Missing Flatpaks show a **Get** badge, and pressing OK installs them from Flathub
 
@@ -33,7 +36,7 @@ sudo ./install.sh --uninstall
 ```
 
 The installer pulls in everything a CLI-only Fedora needs: labwc, wlrctl, wlr-randr,
-swayidle, Xwayland, Python + PySide6 with Qt Wayland/SVG, PipeWire, NetworkManager, BlueZ,
+swayidle, Xwayland, Python + PySide6 with Qt Wayland/SVG and layer-shell-qt (for the Quick Menu), PipeWire, NetworkManager, BlueZ,
 polkit, Flatpak (adding Flathub) with xdg-desktop-portal, Mesa, Inter, Papirus, and Brave from Brave's own repository
 (used for the browser and the web shortcuts). On Fedora Atomic, packages are layered
 with rpm-ostree and arrive after a reboot.

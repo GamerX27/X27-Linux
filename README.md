@@ -218,6 +218,8 @@ the image from there, so a change to it rebuilds the images like one to `recipes
   carries and installs all five offline, from `flatpak_refs-media-pc/`, and rebased systems
   get any missing ones on first boot), plus Patreon, Odysee, and Brave. Customize it in
   `~/.config/x27-tv/apps.toml` (copy `/usr/share/x27-tv/config/apps.toml`)
+- Inside an app, hold the gamepad's Guide button (or Super+Q) for the Quick Menu: volume,
+  audio output, Home, Close App, Settings, Sleep
 - Logs: `journalctl -u x27-tv` for the session, `~/.cache/x27-tv/logs/` per app
 - Also from the base image: Brave, fish, fastfetch, htop, nvtop, nano, distrobox,
   topgrade, codecs and hardware video decode, the CachyOS tuning

@@ -1,5 +1,5 @@
-// Root window: Top Shelf + app row, the Control Center and All Apps overlays, and the
-// remote/gamepad/keyboard navigation between them.
+// Root window: Top Shelf + app row, the Control Center and All Apps overlays, the in-app
+// Quick Menu, and the remote/gamepad/keyboard navigation between them.
 import QtQuick
 import QtQuick.Window
 import QtQuick.Effects
@@ -24,6 +24,7 @@ Window {
     })
     readonly property var apps: Apps.apps.concat([allTile])
     readonly property var focused: apps[Math.min(current, apps.length - 1)]
+    readonly property var quickMenu: quickLoader.item
 
     function goHome() {
         controlCenter.close()
@@ -31,6 +32,28 @@ Window {
         settingsPage.close()
         mode = "row"
         keys.forceActiveFocus()
+    }
+
+    function openControlCenter() {
+        if (mode === "control") return
+        allApps.close(); settingsPage.close()
+        mode = "control"
+        controlCenter.open()
+    }
+
+    // Guide held or Super+Q: the Quick Menu over the app in front, or the Control Center when
+    // that's the launcher itself.
+    function quick(appId) {
+        if (active || !appId) { openControlCenter(); return }
+        if (!quickMenu) return
+        const w = Launcher.windows.find(x => x.appId === appId)
+        quickMenu.toggle(appId, w ? w.name : "")
+    }
+
+    function returnHome() {
+        Launcher.home()
+        requestActivate()
+        goHome()
     }
 
     function launchCurrent() {
@@ -226,6 +249,18 @@ Window {
         source: scene
         onClosed: { root.mode = allApps.shown ? "all" : "row"; if (allApps.shown) allApps.open(); else keys.forceActiveFocus() }
         onSettingsRequested: { allApps.close(); root.mode = "settings"; settingsPage.open() }
+    }
+
+    Loader {
+        id: quickLoader
+        source: "QuickMenu.qml"
+        onStatusChanged: if (status === Loader.Error) console.warn("Quick Menu unavailable (needs layer-shell-qt)")
+    }
+
+    Connections {
+        target: root.quickMenu
+        function onHomeRequested() { root.returnHome() }
+        function onSettingsRequested() { root.returnHome(); root.mode = "settings"; settingsPage.open() }
     }
 
     Rectangle {

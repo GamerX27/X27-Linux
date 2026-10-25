@@ -1,5 +1,6 @@
-# x27-tv entry point: sets up Qt, exposes the backends to QML, loads the UI and
-# routes gamepad input into the window.
+# x27-tv entry point: sets up Qt, exposes the backends to QML, loads the UI, routes gamepad
+# input into the window (or the Quick Menu when it's open), and answers x27-tv-ctl over the
+# session bus (org.x27tv.Launcher).
 
 import argparse
 import signal
@@ -7,7 +8,8 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-from PySide6.QtCore import QByteArray, QEvent, QSize, Qt, QUrl
+from PySide6.QtCore import ClassInfo, QByteArray, QEvent, QObject, QSize, Qt, QUrl, Signal, Slot
+from PySide6.QtDBus import QDBusConnection
 from PySide6.QtGui import QColor, QGuiApplication, QIcon, QKeyEvent, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtQml import QQmlApplicationEngine
@@ -63,6 +65,15 @@ class IconProvider(QQuickImageProvider):
             size.setWidth(pm.width())
             size.setHeight(pm.height())
         return pm
+
+
+@ClassInfo({"D-Bus Interface": "org.x27tv.Launcher"})
+class Remote(QObject):
+    quick = Signal()
+
+    @Slot()
+    def QuickMenu(self):
+        self.quick.emit()
 
 
 def setup_icons():
@@ -131,10 +142,21 @@ def main():
     window.activeChanged.connect(lambda: window.isActive() and store.refresh())
 
     def inject(key):
-        if not window.isActive():
+        menu = window.property("quickMenu")
+        target = menu if menu is not None and menu.isVisible() else window
+        if not target.isActive():
             return
         for kind in (QEvent.KeyPress, QEvent.KeyRelease):
-            QGuiApplication.sendEvent(window, QKeyEvent(kind, key, Qt.NoModifier))
+            QGuiApplication.sendEvent(target, QKeyEvent(kind, key, Qt.NoModifier))
+
+    def quick():
+        window.quick(launcher.focused_app())
+
+    remote = Remote()
+    remote.quick.connect(quick)
+    bus = QDBusConnection.sessionBus()
+    if bus.isConnected() and bus.registerService("org.x27tv.Launcher"):
+        bus.registerObject("/", remote, QDBusConnection.ExportAllSlots)
 
     def home():
         if not go_home():
@@ -146,6 +168,10 @@ def main():
         pad = Gamepad()
         pad.key.connect(inject)
         pad.home.connect(home)
+        pad.quick.connect(quick)
+        menu = window.property("quickMenu")
+        if menu is not None:
+            menu.visibleChanged.connect(lambda: pad.set_grab(menu.isVisible()))
         pad.start()
 
     code = app.exec()

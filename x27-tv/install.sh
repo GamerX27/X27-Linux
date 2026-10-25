@@ -16,7 +16,7 @@ TARGET_USER="${SUDO_USER:-}"
 
 PACKAGES=(
     labwc xorg-x11-server-Xwayland wlrctl wlr-randr swayidle
-    python3 python3-pyside6 python3-evdev qt6-qtwayland qt6-qtsvg qt6-qtdeclarative
+    python3 python3-pyside6 python3-evdev qt6-qtwayland qt6-qtsvg qt6-qtdeclarative layer-shell-qt
     pipewire wireplumber NetworkManager bluez util-linux dbus-tools glib2
     flatpak xdg-desktop-portal xdg-desktop-portal-gtk
     mesa-dri-drivers rsms-inter-fonts papirus-icon-theme polkit
