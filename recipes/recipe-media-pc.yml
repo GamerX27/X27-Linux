@@ -35,7 +35,6 @@ modules:
     install:
       packages:
         - brave-browser
-        - fastfetch
         - fish
         - htop
         - nano
@@ -99,8 +98,6 @@ modules:
       packages:
         - topgrade
 
-  # x27-install-date.service (files/systemd/system/) stamps /var/lib/x27-linux/install-date on
-  # first boot only, for fastfetch's OS Age.
   # Auto-updates: the image is staged in the background and used on the next reboot, and
   # Flatpaks update daily. bootc-fetch-apply-updates.timer stays masked since it reboots.
   # The base masks rpm-ostreed-automatic.timer, and this module enables before it
@@ -113,7 +110,6 @@ modules:
   - type: systemd
     system:
       enabled:
-        - x27-install-date.service
         - x27-flathub-metadata.service
         - rpm-ostreed-automatic.timer
         - x27-flatpak-update.timer

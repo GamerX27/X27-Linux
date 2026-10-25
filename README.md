@@ -221,7 +221,7 @@ the image from there, so a change to it rebuilds the images like one to `recipes
 - Inside an app, hold the gamepad's Guide button (or Super+Q) for the Quick Menu: volume,
   audio output, Home, Close App, Settings, Sleep
 - Logs: `journalctl -u x27-tv` for the session, `~/.cache/x27-tv/logs/` per app
-- Also from the base image: Brave, fish, fastfetch, htop, nvtop, nano, distrobox,
+- Also from the base image: Brave, fish, htop, nvtop, nano, distrobox,
   topgrade, codecs and hardware video decode, the CachyOS tuning
 - LTS kernel (see above)
 - Updates itself, see [Auto-updates](#auto-updates)
