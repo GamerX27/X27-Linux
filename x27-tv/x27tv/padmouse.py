@@ -1,12 +1,13 @@
 # Gamepad as mouse and keyboard, for apps that don't support a gamepad: a virtual uinput
 # device the compositor treats like any other mouse/keyboard. The left stick moves the
 # pointer (hold the right trigger for slow, precise movement), the right stick scrolls,
-# A/X click left/right (A held drags), B is Escape, the
+# A/X click left/right (A held drags; buttons by their Xbox letters), B is Escape, the
 # D-pad arrow keys, Start Enter, Select Tab, LB Backspace, RB Space, and Y asks for the
 # on-screen keyboard, whose text is then typed here. Gamepad events arrive on the gamepad
 # thread (handle/tick); typing comes from the UI thread, hence the lock.
 
 import threading
+from pathlib import Path
 
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
@@ -21,6 +22,11 @@ CURVE = 1.6         # stick response: 1 is linear, higher is finer near the cent
 SCROLL = 14.0       # wheel notches/s at full tilt
 DEADZONE = 0.15
 TYPE_DELAY_MS = 300  # lets focus get back to the app after the keyboard closes
+
+# Xbox drivers report face buttons by letter, and BTN_X/BTN_Y are the same codes as
+# BTN_NORTH/BTN_WEST, so on those pads "north" is the left button (X) and "west" the top (Y).
+LETTER_DRIVERS = {"xpad", "xpadneo", "microsoft"}
+MICROSOFT = 0x045E
 
 if UInput:
     BUTTONS = {e.BTN_SOUTH: e.BTN_LEFT, e.BTN_WEST: e.BTN_RIGHT, e.BTN_EAST: e.KEY_ESC,
@@ -62,6 +68,8 @@ class MouseMode(QObject):
         self._frac = [0.0, 0.0, 0.0, 0.0]
         self._hat = {}
         self._trigger = 0.0
+        self._letters = {}
+        self._active = False
 
     @staticmethod
     def supported():
@@ -74,6 +82,16 @@ class MouseMode(QObject):
     @Property(bool, notify=changed)
     def enabled(self):
         return self._enabled
+
+    # Enabled and actually driving an app (an app in front, no overlay), for the indicator.
+    @Property(bool, notify=changed)
+    def active(self):
+        return self._active
+
+    def set_active(self, on):
+        if on != self._active:
+            self._active = on
+            self.changed.emit()
 
     @Slot(bool)
     def setEnabled(self, on):
@@ -113,13 +131,25 @@ class MouseMode(QObject):
         if self._dev:
             self._emit([(e.EV_KEY, k, 0) for k in set(BUTTONS.values()) | set(HAT.values())])
 
+    def _by_letter(self, dev):
+        if dev.path not in self._letters:
+            try:
+                driver = Path(f"/sys/class/input/{Path(dev.path).name}/device/device/driver").resolve().name
+            except OSError:
+                driver = ""
+            self._letters[dev.path] = dev.info.vendor == MICROSOFT or driver in LETTER_DRIVERS
+        return self._letters[dev.path]
+
     # Gamepad thread.
     def handle(self, dev, ev):
-        if ev.type == e.EV_KEY and ev.code == e.BTN_NORTH:
+        code = ev.code
+        if ev.type == e.EV_KEY and code in (e.BTN_NORTH, e.BTN_WEST) and self._by_letter(dev):
+            code = e.BTN_WEST if code == e.BTN_NORTH else e.BTN_NORTH
+        if ev.type == e.EV_KEY and code == e.BTN_NORTH:
             if ev.value == 1:
                 self.typeRequested.emit()
-        elif ev.type == e.EV_KEY and ev.code in BUTTONS and ev.value in (0, 1):
-            self._emit([(e.EV_KEY, BUTTONS[ev.code], ev.value)])
+        elif ev.type == e.EV_KEY and code in BUTTONS and ev.value in (0, 1):
+            self._emit([(e.EV_KEY, BUTTONS[code], ev.value)])
         elif ev.type == e.EV_ABS and ev.code in (e.ABS_HAT0X, e.ABS_HAT0Y):
             prev = self._hat.get(ev.code, 0)
             out = []

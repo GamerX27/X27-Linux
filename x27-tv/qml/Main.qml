@@ -254,6 +254,11 @@ Window {
         onStatusChanged: if (status === Loader.Error) console.warn("Quick Menu unavailable (needs layer-shell-qt)")
     }
 
+    Loader {
+        source: "MouseIndicator.qml"
+        onStatusChanged: if (status === Loader.Error) console.warn("Mouse mode indicator unavailable (needs layer-shell-qt)")
+    }
+
     Connections {
         target: root.quickMenu
         function onHomeRequested() { root.returnHome() }

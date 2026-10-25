@@ -204,6 +204,7 @@ def main():
             if pad.route_mouse and not on:
                 mouse.release_all()
             pad.set_route_mouse(on)
+            mouse.set_active(on)
 
         if menu is not None:
             menu.visibleChanged.connect(route)
