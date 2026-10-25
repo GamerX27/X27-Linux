@@ -205,22 +205,13 @@ modules:
             && grep -q '^browser = "brave-browser"' /usr/share/x27-tv/config/apps.toml \
             && ! rpm -q plasma-workspace
 
-  # make_brave_great_again.sh's /etc/hosts step always fails here (buildah bind-mounts it
-  # read-only during RUN) and is ignored; the policy file it writes is verified explicitly instead.
+  # No make_brave_great_again.sh here, unlike the other images: Brave stays stock on the TV.
   - type: containerfile
     snippets:
       - |
         RUN curl -fsSL -o /usr/bin/x-linuxtool \
               https://codeberg.org/X27/X-Linuxtool/raw/branch/main/X-Linuxtool.sh \
             && chmod +x /usr/bin/x-linuxtool
-      - |
-        RUN set -eu; \
-            curl -fsSL -o /tmp/make_brave_great_again.sh \
-              https://codeberg.org/X27/X-Linuxtool/raw/branch/main/Desktop/Linux-Desktop/Browser/make_brave_great_again.sh; \
-            chmod +x /tmp/make_brave_great_again.sh; \
-            /tmp/make_brave_great_again.sh || true; \
-            test -f /etc/brave/policies/managed/make_brave_great_again.json; \
-            rm -f /tmp/make_brave_great_again.sh
       # Same LC_TIME setup as recipe-lts.yml: localectl if it works in the build step, else
       # the sed/echo fallback.
       - |
