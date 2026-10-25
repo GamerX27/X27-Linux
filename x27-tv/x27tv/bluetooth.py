@@ -1,6 +1,8 @@
 # Bluetooth settings backend via bluetoothctl: power (unblocking rfkill if needed),
 # paired devices, scanning, and pair/connect/disconnect/forget. bluetoothctl exits 0 even
 # when a command fails, so pairing and connecting check the result with `bluetoothctl info`.
+# Searching or pairing arms the pairing agent (btagent.py) and makes the adapter pairable,
+# until a minute after both are done.
 
 import re
 
@@ -8,13 +10,19 @@ from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
 from .proc import run
 
+try:
+    from .btagent import Agent
+except ImportError:
+    Agent = None
+
 MAC = re.compile(r"^[0-9A-F]{2}(:[0-9A-F]{2}){5}$")
 UNNAMED = re.compile(r"^[0-9A-F]{2}(-[0-9A-F]{2}){5}$")
 SCAN_SECONDS = 15
+PAIRING_WINDOW = 60 * 1000
 
 # Pairs $1, keeping a discovery session open throughout so the device stays known to BlueZ
-# (it drops unpaired devices shortly after a scan ends). Trusted first: with no agent to answer,
-# an untrusted device's own connection back (controllers do this) would be rejected.
+# (it drops unpaired devices shortly after a scan ends). Trusted first, so a device's own
+# connection back (controllers do this) needs no authorization.
 PAIR = r'''
 m=$1
 bluetoothctl --timeout 60 scan on >/dev/null 2>&1 &
@@ -81,10 +89,14 @@ class Bluetooth(QObject):
         self._discovered = []
         self._busy = ""
         self._error = ""
+        self._target = ""
+        self._failed = ""
         self._scan_left = 0
         self._connected = set()
         self._paired_macs = set()
         self._timer = QTimer(self, interval=1000, timeout=self._scan_tick)
+        self._agent = Agent() if Agent else None
+        self._window = QTimer(self, singleShot=True, interval=PAIRING_WINDOW, timeout=self._disarm)
 
     @Property(bool, notify=stateChanged)
     def available(self):
@@ -122,6 +134,14 @@ class Bluetooth(QObject):
     def error(self):
         return self._error
 
+    @Property(str, notify=stateChanged)
+    def target(self):
+        return self._target
+
+    @Property(str, notify=stateChanged)
+    def failed(self):
+        return self._failed
+
     @Slot()
     def refresh(self):
         run(self, "bluetoothctl", ["show"], self._show)
@@ -158,15 +178,31 @@ class Bluetooth(QObject):
     def _start(self, message, script, *args):
         if self._busy:
             return
-        self._busy, self._error = message, ""
+        self._busy, self._error, self._failed = message, "", ""
+        self._target = args[0] if args else ""
         self.stateChanged.emit()
         run(self, "sh", ["-c", script, "sh", *args], self._finish)
+
+    def _arm(self):
+        if self._agent and not self._agent.armed:
+            self._agent.armed = True
+            run(self, "bluetoothctl", ["pairable", "on"])
+        self._window.start()
+
+    def _disarm(self):
+        if self._busy or self._scan_left:
+            self._window.start()
+        elif self._agent and self._agent.armed:
+            self._agent.armed = False
+            run(self, "bluetoothctl", ["pairable", "off"])
 
     def _finish(self, code, out, err):
         self._busy = ""
         if code != 0:
             lines = [l for l in (out + "\n" + err).splitlines() if "Failed" in l or "rror" in l or "not available" in l]
             self._error = lines[-1].strip() if lines else "Something went wrong"
+            self._failed = self._target
+        self._target = ""
         self.refresh()
 
     @Slot(bool)
@@ -182,6 +218,7 @@ class Bluetooth(QObject):
             return
         self._scan_left = SCAN_SECONDS
         self._timer.start()
+        self._arm()
         self.stateChanged.emit()
         run(self, "bluetoothctl", ["--timeout", str(SCAN_SECONDS), "scan", "on"])
 
@@ -195,6 +232,8 @@ class Bluetooth(QObject):
 
     @Slot(str, str)
     def pair(self, mac, name):
+        if not self._busy:
+            self._arm()
         self._start(f"Pairing with {name}…", PAIR + CONNECT, mac, name)
 
     @Slot(str, str)
@@ -211,5 +250,5 @@ class Bluetooth(QObject):
 
     @Slot()
     def clearError(self):
-        self._error = ""
+        self._error, self._failed = "", ""
         self.stateChanged.emit()

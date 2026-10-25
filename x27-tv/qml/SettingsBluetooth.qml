@@ -12,6 +12,13 @@ SettingsPane {
 
     function close() { selected = ""; reset() }
 
+    // Progress and errors on the device's own row; the notes at the top may be out of view.
+    function status(d, idle) {
+        if (Bluetooth.target === d.mac && Bluetooth.busy) return Bluetooth.busy
+        if (Bluetooth.failed === d.mac) return Bluetooth.error
+        return idle
+    }
+
     backHandler: () => { if (selected) { close(); return true } return false }
 
     Component.onCompleted: { Bluetooth.clearError(); Bluetooth.refresh() }
@@ -48,7 +55,7 @@ SettingsPane {
         for (const d of Bluetooth.devices)
             r.push({
                 kind: "value", glyph: glyphs[d.kind], label: d.name, value: d.connected ? "Connected" : "Not Connected",
-                detail: kinds[d.kind], chevron: true, run: () => { page.selected = d.mac; page.reset() }
+                detail: status(d, kinds[d.kind]), chevron: true, run: () => { page.selected = d.mac; page.reset() }
             })
         if (!Bluetooth.devices.length) r.push({ kind: "note", label: "No paired devices yet." })
 
@@ -60,7 +67,8 @@ SettingsPane {
             run: () => Bluetooth.scan()
         })
         for (const d of Bluetooth.discovered)
-            r.push({ kind: "value", glyph: glyphs[d.kind], label: d.name, detail: kinds[d.kind] + " · press OK to pair", run: () => Bluetooth.pair(d.mac, d.name) })
+            r.push({ kind: "value", glyph: glyphs[d.kind], label: d.name, detail: status(d, kinds[d.kind] + " · press OK to pair"),
+                     value: Bluetooth.target === d.mac && Bluetooth.busy ? "…" : "", run: () => Bluetooth.pair(d.mac, d.name) })
         return r
     }
 }

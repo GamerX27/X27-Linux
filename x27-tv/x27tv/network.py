@@ -1,5 +1,6 @@
 # Network settings backend via nmcli: Wi-Fi radio, wired status, scanning, connecting
-# with or without a password, disconnecting and forgetting networks.
+# with or without a password, disconnecting and forgetting networks. `target` is the network
+# being acted on, so the page can show progress and errors on its row.
 
 import re
 
@@ -7,6 +8,14 @@ from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 
 from .proc import run
 from .system import primary_ip
+
+NOTICE_MS = 6000
+# nmcli's activation errors, as something to tell the person holding the remote.
+FRIENDLY = [
+    (re.compile(r"Secrets were required|802-1X|psk|password", re.I), "Wrong password for {ssid}. Press OK on it to try again."),
+    (re.compile(r"No network with SSID", re.I), "{ssid} isn't in range anymore."),
+    (re.compile(r"timeout|timed out", re.I), "{ssid} didn't answer. Try again closer to the router."),
+]
 
 
 def split_terse(line):
@@ -26,6 +35,12 @@ class Network(QObject):
         self._busy = ""
         self._error = ""
         self._scanning = False
+        self._target = ""
+        self._failed = ""
+        self._notice = ""
+        self._new = False
+        self._replace_args = []
+        self._notice_timer = QTimer(self, singleShot=True, interval=NOTICE_MS, timeout=self._clear_notice)
 
     @Property(bool, notify=stateChanged)
     def wifiEnabled(self):
@@ -58,6 +73,22 @@ class Network(QObject):
     @Property(bool, notify=stateChanged)
     def scanning(self):
         return self._scanning
+
+    @Property(str, notify=stateChanged)
+    def target(self):
+        return self._target
+
+    @Property(str, notify=stateChanged)
+    def failed(self):
+        return self._failed
+
+    @Property(str, notify=stateChanged)
+    def notice(self):
+        return self._notice
+
+    def _clear_notice(self):
+        self._notice = ""
+        self.stateChanged.emit()
 
     @Slot()
     def refresh(self):
@@ -120,17 +151,32 @@ class Network(QObject):
         self._scanning = False
         self.stateChanged.emit()
 
-    def _finish(self, code, out, err):
-        self._busy = ""
+    def _finish(self, action, code, out, err):
+        if action == "replace":
+            self._saved.discard(self._target)
+            self._busy = ""
+            self._start(f"Connecting to {self._target}…", self._replace_args, "connect", self._target)
+            return
+        ssid, self._busy = self._target, ""
         if code != 0:
             msg = (err or out).strip().splitlines()
-            self._error = re.sub(r"^Error:\s*", "", msg[-1] if msg else "Something went wrong")
+            raw = re.sub(r"^Error:\s*", "", msg[-1] if msg else "Something went wrong")
+            self._error = next((text.format(ssid=ssid) for pattern, text in FRIENDLY if pattern.search(raw)), raw)
+            self._failed = ssid
+            # A first connect that fails still leaves a profile with the wrong password behind,
+            # which would then show as Saved and never ask for the password again.
+            if action == "connect" and self._new:
+                run(self, "nmcli", ["connection", "delete", "id", ssid])
+        elif action == "connect":
+            self._notice, self._failed = f"Connected to {ssid}", ""
+            self._notice_timer.start()
+        self._target = ""
         self.refresh()
 
-    def _start(self, message, args):
-        self._busy, self._error = message, ""
+    def _start(self, message, args, action="", target=""):
+        self._busy, self._error, self._target, self._notice = message, "", target, ""
         self.stateChanged.emit()
-        run(self, "nmcli", args, self._finish)
+        run(self, "nmcli", args, lambda code, out, err: self._finish(action, code, out, err))
 
     @Slot(bool)
     def setWifi(self, on):
@@ -139,21 +185,29 @@ class Network(QObject):
 
     @Slot(str, str)
     def connectTo(self, ssid, password):
+        if self._busy:
+            return
+        self._new = ssid not in self._saved
+        args = ["device", "wifi", "connect", ssid] + (["password", password] if password else [])
         if ssid in self._saved and not password:
             args = ["connection", "up", "id", ssid]
-        else:
-            args = ["device", "wifi", "connect", ssid] + (["password", password] if password else [])
-        self._start(f"Connecting to {ssid}…", args)
+        elif ssid in self._saved:
+            # New password for a saved network: replace its profile rather than add a second.
+            self._new = True
+            self._start(f"Connecting to {ssid}…", ["connection", "delete", "id", ssid], "replace", ssid)
+            self._replace_args = ["--wait", "30", *args]
+            return
+        self._start(f"Connecting to {ssid}…", ["--wait", "30", *args], "connect", ssid)
 
     @Slot(str)
     def disconnectFrom(self, ssid):
-        self._start(f"Disconnecting from {ssid}…", ["connection", "down", "id", ssid])
+        self._start(f"Disconnecting from {ssid}…", ["connection", "down", "id", ssid], "disconnect", ssid)
 
     @Slot(str)
     def forget(self, ssid):
-        self._start(f"Forgetting {ssid}…", ["connection", "delete", "id", ssid])
+        self._start(f"Forgetting {ssid}…", ["connection", "delete", "id", ssid], "forget", ssid)
 
     @Slot()
     def clearError(self):
-        self._error = ""
+        self._error, self._failed = "", ""
         self.stateChanged.emit()
