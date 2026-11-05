@@ -16,7 +16,8 @@ see [Media PC variant](#media-pc-variant).
 ## What's in it
 
 - Brave (default browser), debranded with [X-Linuxtool](https://codeberg.org/X27/X-Linuxtool)
-- Removed: Firefox, KHelpCenter, Discover
+- Removed: Firefox, KHelpCenter, Discover, the extra Plasma wallpapers (the defaults stay),
+  the AWS Python SDK (boto3), and the kernel build tools (no out-of-tree modules on an image)
 - Dark theme, Papirus icons, Fish shell, Konsole terminal, fastfetch banner
 - fastfetch, htop, nvtop, nano, pciutils, lm_sensors, topgrade
 - Bazaar replacing Discover, as an RPM from ublue-os/packages like Bazzite. Its
@@ -31,7 +32,10 @@ see [Media PC variant](#media-pc-variant).
 - Brave, Dolphin, Konsole, and Bazaar pinned to the taskbar (new accounts only)
 - Hot corners and the shake-to-locate-cursor effect disabled (new accounts only)
 - CachyOS kernel (BORE scheduler); LTS variant published separately
-- CachyOS tuning: sysctl, zram, I/O schedulers, `ntsync`, sched-ext schedulers (see [CachyOS tuning](#cachyos-tuning))
+- CachyOS tuning: sysctl, zram, I/O schedulers, `ntsync`; sched-ext schedulers on Gaming (see [CachyOS tuning](#cachyos-tuning))
+- Baloo file indexing off by default, so the first login doesn't index the whole disk.
+  KRunner still finds apps and file names; Dolphin's search inside file contents needs it.
+  Turn it on in System Settings → Search → File Search, or `balooctl6 enable`
 - `dnf` disabled on the installed system (see [Installing software](#installing-software))
 - Auto-updates off — update manually with `topgrade` (Gaming and Media PC
   update themselves, see [Auto-updates](#auto-updates))
@@ -165,18 +169,10 @@ COPR:
 - `cachyos-settings`: CachyOS sysctl, zram (zstd, sized to RAM), udev I/O
   scheduler rules, `ntsync`, and the `game-performance`, `zink-run`, and
   `kerver` commands
-- `scx-scheds` and `scx-tools`: sched-ext schedulers, `scxctl`, `scxtui`
+- Gaming only: `scx-scheds` and `scx-tools`: sched-ext schedulers, `scxctl`, `scxtui`
 
-On all images except gaming, no sched-ext scheduler runs by default; BORE from
-the kernel handles scheduling. To try one:
-
-```
-sudo systemctl start scx_loader
-scxctl start -s scx_bpfland
-```
-
-To load one on every boot, set `default_sched` in
-`/etc/scx_loader/config.toml` and run `sudo systemctl enable --now scx_loader`.
+The other images don't include the sched-ext schedulers; BORE from the kernel
+handles scheduling there.
 
 ## Gaming variant
 

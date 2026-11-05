@@ -135,6 +135,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Package lists from this run's build jobs (build-image.yml). Images skipped in a
+      # single-recipe dispatch have none; release-notes.sh pulls those itself.
+      - name: Download package lists
+        uses: actions/download-artifact@v5
+        continue-on-error: true
+        with:
+          pattern: packages-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/packages
+
       - name: Log in to ghcr.io
         run: echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
@@ -142,4 +152,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
+          PACKAGES_DIR: ${{ runner.temp }}/packages
         run: ./scripts/release-notes.sh
