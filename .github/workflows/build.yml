@@ -10,6 +10,7 @@ on:
       - "cosign.pub"
       - ".github/workflows/build.yml"
       - ".github/workflows/build-image.yml"
+      - "scripts/release-notes.sh"
     branches:
       - main
   pull_request:
@@ -20,6 +21,7 @@ on:
       - "cosign.pub"
       - ".github/workflows/build.yml"
       - ".github/workflows/build-image.yml"
+      - "scripts/release-notes.sh"
   workflow_dispatch:
     inputs:
       recipe:
