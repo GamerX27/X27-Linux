@@ -37,15 +37,16 @@ modules:
       disabled:
         - topgrade-reminder.timer
 
-  # Gaming extras from bieszczaders/kernel-cachyos-addons on top of the base's cachyos-settings
-  # and scx-scheds: ananicy-cpp and scx-manager, with scx_loader (scx_lavd,
+  # Gaming extras from bieszczaders/kernel-cachyos-addons on top of the base's cachyos-settings:
+  # the sched-ext schedulers (scx-scheds, scx-tools; Gaming-only, the other images don't run
+  # them), ananicy-cpp and scx-manager, with scx_loader (scx_lavd,
   # files/gaming/etc/scx_loader) and ananicy-cpp enabled.
   # power-profiles-daemon replaces tuned-ppd for powerprofilesctl, which game-performance needs.
   - type: containerfile
     snippets:
       - |
         RUN dnf5 -y copr enable bieszczaders/kernel-cachyos-addons \
-            && dnf5 -y install ananicy-cpp cachyos-ananicy-rules scx-manager \
+            && dnf5 -y install scx-scheds scx-tools ananicy-cpp cachyos-ananicy-rules scx-manager \
             && dnf5 -y copr disable bieszczaders/kernel-cachyos-addons \
             && dnf5 -y swap tuned-ppd power-profiles-daemon \
             && rpm -q cachyos-settings scx-scheds scx-tools ananicy-cpp cachyos-ananicy-rules scx-manager \

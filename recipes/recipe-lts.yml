@@ -16,12 +16,25 @@ modules:
         destination: /
 
   # bootc image: package changes happen via dnf in the build container, not rpm-ostree.
+  # All repo packages in one dnf step: each dnf step rewrites the whole rpmdb (~140 MB) into
+  # a new layer, so separate steps make every update download it again.
+  # Bazaar replaces Discover (removed below), as an RPM like Bazzite ships it: the Flatpak runs
+  # sandboxed, where syncing the system Flathub remote fails, and could start before the network
+  # was up and stay empty. krunner-bazaar puts its search results in KRunner. ublue-os/packages
+  # also carries libadwaita/glycin builds; installed ones aren't swapped by an install, and
+  # cleanup disables all three repos again afterwards.
+  # Removed with nothing requiring them: python3-boto3 & co. (AWS SDK from the Kinoite base)
+  # and plasma-workspace-wallpapers (~300 MB of extra wallpapers; the defaults, Next and
+  # Fedora, come from plasma-breeze-common and kde-settings).
   - type: dnf
     repos:
       files:
         - https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
       keys:
         - https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
+      copr:
+        - lilay/topgrade
+        - ublue-os/packages
       cleanup: true
     install:
       packages:
@@ -36,6 +49,11 @@ modules:
         - pciutils
         - lm_sensors
         - distrobox
+        - topgrade
+        - bazaar
+        - krunner-bazaar
+        - sbsigntools
+        - mokutil
     remove:
       packages:
         - firefox
@@ -51,6 +69,10 @@ modules:
         - plasma-discover
         - plasma-discover-notifier
         - NetworkManager-config-connectivity-fedora
+        - python3-boto3
+        - python3-botocore
+        - python3-s3transfer
+        - plasma-workspace-wallpapers
 
   # The ISO embeds VLC (flatpak_refs/) and installs it offline; BlueBuild empties /var, so it
   # can't ship in the image itself. This installs these on first boot for systems that rebased
@@ -69,29 +91,6 @@ modules:
       remove:
         - io.github.kolunmi.Bazaar
 
-  - type: dnf
-    repos:
-      copr:
-        - lilay/topgrade
-      cleanup: true
-    install:
-      packages:
-        - topgrade
-
-  # Bazaar replaces Discover (removed above), as an RPM like Bazzite ships it: the Flatpak runs
-  # sandboxed, where syncing the system Flathub remote fails, and could start before the network
-  # was up and stay empty. krunner-bazaar puts its search results in KRunner. Only these
-  # packages come from ublue-os/packages; the copr is disabled again afterwards.
-  - type: dnf
-    repos:
-      copr:
-        - ublue-os/packages
-      cleanup: true
-    install:
-      packages:
-        - bazaar
-        - krunner-bazaar
-
   # Masks the base image's background auto-update timer; topgrade-reminder.timer
   # (files/systemd/user/) nudges weekly instead. x27-install-date.service
   # (files/systemd/system/) stamps /var/lib/x27-linux/install-date on first boot only,
@@ -103,38 +102,33 @@ modules:
         - x27-flathub-metadata.service
       masked:
         - bootc-fetch-apply-updates.timer
+        # Refreshes dnf metadata in the background, but dnf is guarded (x27-dnf-guard) and
+        # updates go through rpm-ostree. dnf5-makecache.timer is an alias of it.
+        - dnf-makecache.timer
     user:
       enabled:
         - topgrade-reminder.timer
 
-  # kernel-cachyos-lts lives in the same bieszczaders/kernel-cachyos copr as the rolling
-  # kernel-cachyos package - there's no separate "kernel-cachyos-lts" copr (an earlier guess
-  # at one 404'd in CI). Needs an x86_64-v3 CPU. cleanup: false is deliberate: the copr must
-  # stay enabled for the containerfile install below, then gets disabled there.
-  - type: dnf
-    repos:
-      copr:
-        - bieszczaders/kernel-cachyos
-    install:
-      packages:
-        - sbsigntools
-        - mokutil
-
+  # CachyOS LTS kernel, needs an x86_64-v3 CPU. kernel-cachyos-lts lives in the same
+  # bieszczaders/kernel-cachyos copr as the rolling kernel-cachyos; there's no separate
+  # "kernel-cachyos-lts" copr (an earlier guess at one 404'd in CI).
   # kernel-cachyos-lts Provides: kernel, so the stock kernel is removed first (installing
   # the new one first would remove it right back out). noscripts skips the RPM's
   # post-install kernel-install/dracut hook, which fails before depmod has run - depmod
   # runs manually below.
+  # Without -devel-matched: that pulls in gcc, make and kernel headers (~350 MB), and nothing
+  # here builds modules (no akmods/dkms, /usr is read-only).
   - type: containerfile
     snippets:
       - |
         RUN set -eu \
+            && dnf5 -y copr enable bieszczaders/kernel-cachyos \
             && STOCK_KVER="$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -n1)" \
             && echo "Removing Fedora kernel ${STOCK_KVER}" \
             && dnf5 -y remove --no-autoremove \
                  kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra \
             && rm -rf "/usr/lib/modules/${STOCK_KVER}" \
-            && dnf5 -y install --setopt=tsflags=noscripts \
-                 kernel-cachyos-lts kernel-cachyos-lts-devel-matched \
+            && dnf5 -y install --setopt=tsflags=noscripts kernel-cachyos-lts \
             && dnf5 -y install --skip-unavailable virtualbox-guest-additions \
             && dnf5 -y copr disable bieszczaders/kernel-cachyos \
             && dnf5 clean all \
@@ -146,17 +140,20 @@ modules:
             && echo "Kernel now: ${KVER}"
 
   # CachyOS userspace tuning from bieszczaders/kernel-cachyos-addons: cachyos-settings (sysctl,
-  # zram, udev, ntsync) and the sched-ext schedulers. cachyos-settings Conflicts with
-  # zram-generator-defaults, hence the swap. Before initramfs: it adds modprobe.d/udev rules.
-  # scx_loader stays disabled here; BORE from the kernel stays in charge.
+  # zram, udev, ntsync). cachyos-settings Conflicts with zram-generator-defaults, hence the
+  # swap. Before initramfs: it adds modprobe.d/udev rules. The sched-ext schedulers are
+  # Gaming-only (recipe-gaming.yml); BORE from the kernel stays in charge here.
   - type: containerfile
     snippets:
       - |
         RUN dnf5 -y copr enable bieszczaders/kernel-cachyos-addons \
             && dnf5 -y swap zram-generator-defaults cachyos-settings \
-            && dnf5 -y install scx-scheds scx-tools \
             && dnf5 -y copr disable bieszczaders/kernel-cachyos-addons \
-            && rpm -q cachyos-settings scx-scheds scx-tools
+            && rpm -q cachyos-settings
+      # Before initramfs, which copies the theme in; no -R, the initramfs module rebuilds it.
+      - |
+        RUN plymouth-set-default-theme bgrt \
+            && test "$(plymouth-set-default-theme)" = bgrt
 
   # Regenerates initramfs to pick up the kernel swap above. Must run after it.
   - type: initramfs
@@ -218,8 +215,6 @@ modules:
                     echo 'LC_TIME=C.UTF-8' >> /etc/locale.conf; \
                 fi; \
             }
-      - |
-        RUN plymouth-set-default-theme -R bgrt
       # VARIANT stays Kinoite: topgrade uses it to pick rpm-ostree over dnf.
       # Set directly here, not via BlueBuild's os-release module: a value substituted into
       # the recipe by an earlier workflow step doesn't survive blue-build's own checkout

@@ -25,3 +25,40 @@ jobs:
           cosign_private_key: ${{ secrets.SIGNING_SECRET }}
           registry_token: ${{ github.token }}
           pr_event_number: ${{ github.event.number }}
+
+      # Package list for build.yml's release job (scripts/release-notes.sh), so it doesn't
+      # pull all five images one after another. The action builds with buildx's
+      # docker-container driver, which leaves no local image, so the image just pushed is
+      # pulled here, in parallel with the other images' jobs. The build cache goes first to
+      # make room. PR builds aren't released, so they skip this. Not fatal: without the
+      # artifact, release-notes.sh pulls the image itself.
+      - name: Package list
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          RECIPE: recipes/${{ inputs.recipe }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          image="$(sed -n 's/^name: *//p' "$RECIPE")"
+          version="$(sed -n 's/^image-version: *//p' "$RECIPE")"
+          name="${image#x27-linux-}"
+          [[ "$image" == x27-linux ]] && name=base
+          ref="ghcr.io/${OWNER,,}/${image}:${GITHUB_SHA::7}-${version}"
+          docker buildx prune -af >/dev/null 2>&1 || true
+          echo "${{ github.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker pull -q "$ref"
+          mkdir -p packages
+          docker run --rm --entrypoint rpm "$ref" -qa --qf '%{NAME} %{EVR}\n' \
+            | grep -v '^gpg-pubkey ' | sort -u >"packages/packages-${name}.txt"
+          echo "PACKAGES_NAME=${name}" >>"$GITHUB_ENV"
+          wc -l "packages/packages-${name}.txt"
+
+      - name: Upload package list
+        if: github.event_name != 'pull_request' && env.PACKAGES_NAME != ''
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ env.PACKAGES_NAME }}
+          path: packages/packages-${{ env.PACKAGES_NAME }}.txt
+          retention-days: 7

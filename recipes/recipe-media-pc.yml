@@ -31,6 +31,8 @@ modules:
         - https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
       keys:
         - https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
+      copr:
+        - lilay/topgrade
       cleanup: true
     install:
       packages:
@@ -70,9 +72,16 @@ modules:
         - mesa-dri-drivers
         - rsms-inter-fonts
         - polkit
+        - topgrade
+        - sbsigntools
+        - mokutil
+    # python3-boto3 & co.: AWS SDK from the base image, nothing requires it.
     remove:
       packages:
         - NetworkManager-config-connectivity-fedora
+        - python3-boto3
+        - python3-botocore
+        - python3-s3transfer
 
   # The home row apps in X27 TV's config/apps.toml. The ISO carries all of them
   # (flatpak_refs-media-pc/) and installs them offline; this installs any that are missing
@@ -88,15 +97,6 @@ modules:
         - org.localsend.localsend_app
       remove:
         - io.github.kolunmi.Bazaar
-
-  - type: dnf
-    repos:
-      copr:
-        - lilay/topgrade
-      cleanup: true
-    install:
-      packages:
-        - topgrade
 
   # Auto-updates: the image is staged in the background and used on the next reboot, and
   # Flatpaks update daily. bootc-fetch-apply-updates.timer stays masked since it reboots.
@@ -115,34 +115,30 @@ modules:
         - x27-flatpak-update.timer
       masked:
         - bootc-fetch-apply-updates.timer
+        # Refreshes dnf metadata in the background, but dnf is guarded (x27-dnf-guard) and
+        # updates go through rpm-ostree. dnf5-makecache.timer is an alias of it.
+        - dnf-makecache.timer
 
-  # kernel-cachyos-lts lives in the same bieszczaders/kernel-cachyos copr as the rolling
-  # kernel-cachyos package. Needs an x86_64-v3 CPU. cleanup: false is deliberate: the copr must
-  # stay enabled for the containerfile install below, then gets disabled there.
-  - type: dnf
-    repos:
-      copr:
-        - bieszczaders/kernel-cachyos
-    install:
-      packages:
-        - sbsigntools
-        - mokutil
-
+  # CachyOS LTS kernel, needs an x86_64-v3 CPU. kernel-cachyos-lts lives in the same
+  # bieszczaders/kernel-cachyos copr as the rolling kernel-cachyos; there's no separate
+  # "kernel-cachyos-lts" copr (an earlier guess at one 404'd in CI).
   # kernel-cachyos-lts Provides: kernel, so the stock kernel is removed first (installing
   # the new one first would remove it right back out). noscripts skips the RPM's
   # post-install kernel-install/dracut hook, which fails before depmod has run - depmod
   # runs manually below.
+  # Without -devel-matched: that pulls in gcc, make and kernel headers (~350 MB), and nothing
+  # here builds modules (no akmods/dkms, /usr is read-only).
   - type: containerfile
     snippets:
       - |
         RUN set -eu \
+            && dnf5 -y copr enable bieszczaders/kernel-cachyos \
             && STOCK_KVER="$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -n1)" \
             && echo "Removing Fedora kernel ${STOCK_KVER}" \
             && dnf5 -y remove --no-autoremove \
                  kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra \
             && rm -rf "/usr/lib/modules/${STOCK_KVER}" \
-            && dnf5 -y install --setopt=tsflags=noscripts \
-                 kernel-cachyos-lts kernel-cachyos-lts-devel-matched \
+            && dnf5 -y install --setopt=tsflags=noscripts kernel-cachyos-lts \
             && dnf5 -y install --skip-unavailable virtualbox-guest-additions \
             && dnf5 -y copr disable bieszczaders/kernel-cachyos \
             && dnf5 clean all \
@@ -154,17 +150,20 @@ modules:
             && echo "Kernel now: ${KVER}"
 
   # CachyOS userspace tuning from bieszczaders/kernel-cachyos-addons: cachyos-settings (sysctl,
-  # zram, udev, ntsync) and the sched-ext schedulers. cachyos-settings Conflicts with
-  # zram-generator-defaults, hence the swap. Before initramfs: it adds modprobe.d/udev rules.
-  # scx_loader stays disabled here; BORE from the kernel stays in charge.
+  # zram, udev, ntsync). cachyos-settings Conflicts with zram-generator-defaults, hence the
+  # swap. Before initramfs: it adds modprobe.d/udev rules. The sched-ext schedulers are
+  # Gaming-only (recipe-gaming.yml); BORE from the kernel stays in charge here.
   - type: containerfile
     snippets:
       - |
         RUN dnf5 -y copr enable bieszczaders/kernel-cachyos-addons \
             && dnf5 -y swap zram-generator-defaults cachyos-settings \
-            && dnf5 -y install scx-scheds scx-tools \
             && dnf5 -y copr disable bieszczaders/kernel-cachyos-addons \
-            && rpm -q cachyos-settings scx-scheds scx-tools
+            && rpm -q cachyos-settings
+      # Before initramfs, which copies the theme in; no -R, the initramfs module rebuilds it.
+      - |
+        RUN plymouth-set-default-theme bgrt \
+            && test "$(plymouth-set-default-theme)" = bgrt
 
   # Regenerates initramfs to pick up the kernel swap above. Must run after it.
   - type: initramfs
@@ -228,8 +227,6 @@ modules:
                     echo 'LC_TIME=C.UTF-8' >> /etc/locale.conf; \
                 fi; \
             }
-      - |
-        RUN plymouth-set-default-theme -R bgrt
       # fedora-base sets no VARIANT; topgrade is pointed at rpm-ostree by files/media-pc's
       # /etc/skel/.config/topgrade.toml instead.
       # Set directly here, not via BlueBuild's os-release module: a value substituted into

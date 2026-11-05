@@ -8,7 +8,9 @@
 #
 # Env: EVENT (github.event_name), GITHUB_REPOSITORY, GITHUB_SHA, GH_TOKEN.
 # DRY_RUN=1 prints the tag and notes instead of publishing. PREV_DIR=<dir> uses package
-# lists from <dir> instead of downloading them from the previous release.
+# lists from <dir> instead of downloading them from the previous release. PACKAGES_DIR=<dir>
+# takes this build's lists (packages-<name>.txt, from build-image.yml) from <dir>; images
+# without one there are pulled and listed here.
 set -euo pipefail
 
 REGISTRY="ghcr.io/gamerx27"
@@ -53,6 +55,11 @@ mkdir -p "${WORK}/new"
 for entry in "${IMAGES[@]}"; do
   name="${entry%%:*}"
   image="${entry#*:}"
+  if [[ -n "${PACKAGES_DIR:-}" && -s "${PACKAGES_DIR}/packages-${name}.txt" ]]; then
+    cp "${PACKAGES_DIR}/packages-${name}.txt" "${WORK}/new/packages-${name}.txt"
+    echo "packages-${name}.txt: from the build job" >&2
+    continue
+  fi
   # This commit's build; falls back to :45 when the image was skipped (single-recipe dispatch).
   ref="${REGISTRY}/${image}:${SHA::7}-${FEDORA}"
   docker pull -q "$ref" >/dev/null 2>&1 || ref="${REGISTRY}/${image}:${FEDORA}"
