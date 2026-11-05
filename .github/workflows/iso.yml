@@ -17,10 +17,10 @@ on:
       tag:
         description: "Image tag the ISO installs; the installed system keeps following it"
         required: false
-        default: "44"
+        default: "45"
         type: choice
         options:
-          - "44"
+          - "45"
           - latest
       cleanup_only:
         description: "Skip the build; only prune superseded versions from the Internet Archive item"
@@ -71,7 +71,7 @@ jobs:
           image_repo: ghcr.io/gamerx27
           image_name: ${{ matrix.image }}
           image_tag: ${{ inputs.tag }}
-          version: "44"
+          version: "45"
           # Picks Anaconda's profile. Kinoite's hides user creation (KDE's Plasma Setup does it on
           # first boot); Media PC has no KDE, and sway-atomic has no profile, so Anaconda falls
           # back to plain Fedora, which asks for a user.

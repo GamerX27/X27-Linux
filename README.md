@@ -1,6 +1,6 @@
 # X27-Linux
 
-Custom Fedora Kinoite 44, built with [BlueBuild](https://blue-build.org/).
+Custom Fedora Kinoite 45, built with [BlueBuild](https://blue-build.org/).
 
 - Base: `ghcr.io/gamerx27/x27-linux` — [recipe.yml](recipes/recipe.yml)
 - LTS kernel: `ghcr.io/gamerx27/x27-linux-lts` — [recipe-lts.yml](recipes/recipe-lts.yml)
@@ -35,7 +35,7 @@ see [Media PC variant](#media-pc-variant).
 - `dnf` disabled on the installed system (see [Installing software](#installing-software))
 - Auto-updates off — update manually with `topgrade` (Gaming and Media PC
   update themselves, see [Auto-updates](#auto-updates))
-- `/etc/os-release` names the image and build, e.g. `X27-Linux 44 Gaming (2026-09-22)`
+- `/etc/os-release` names the image and build, e.g. `X27-Linux 45 Gaming (2026-09-22)`
 
 ## Install
 
@@ -48,14 +48,14 @@ workflow), pick the image, and download the ISO from the run's artifacts, or
 **Already on Fedora Kinoite:** rebase onto this image.
 
 ```
-sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/gamerx27/x27-linux:44
+sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/gamerx27/x27-linux:45
 systemctl reboot
 ```
 
 Then switch to verified pulls:
 
 ```
-sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/gamerx27/x27-linux:44
+sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/gamerx27/x27-linux:45
 systemctl reboot
 ```
 
@@ -67,9 +67,19 @@ account then boots into X27 TV.
 
 ### Image tags
 
-- `:44` — follows Fedora 44, rebuilt weekly. Use this one.
-- `:<date>-44` (e.g. `:20260922-44`) — one fixed build, for rolling back.
+- `:45` — follows Fedora 45, rebuilt weekly. Use this one.
+- `:<date>-45` (e.g. `:20260922-45`) — one fixed build, for rolling back.
 - `:latest` — the newest build, whatever Fedora version that is.
+
+**Upgrading from Fedora 44:** `:44` is no longer rebuilt. Systems following it
+move to `:45` with one rebase (swap in your image name), then a reboot:
+
+```
+sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/gamerx27/x27-linux:45
+systemctl reboot
+```
+
+Systems on `:latest` move to 45 by themselves.
 
 ## Installing software
 
@@ -270,8 +280,8 @@ Each run first empties `iso-out/`, removing the ISOs of every image, not just th
 one being built.
 
 `--tag` picks the image tag the ISO installs, and the installed system keeps
-following it on updates: `44`, `latest`, or a dated tag (see [Image tags](#image-tags)).
-Without it the script asks, defaulting to `44`. The `build-iso` workflow has the
+following it on updates: `45`, `latest`, or a dated tag (see [Image tags](#image-tags)).
+Without it the script asks, defaulting to `45`. The `build-iso` workflow has the
 same choice.
 
 `--usb` writes the ISO to a USB drive after the build: it lists the USB drives,

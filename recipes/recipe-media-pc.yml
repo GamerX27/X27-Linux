@@ -4,7 +4,7 @@
 name: x27-linux-media-pc
 description: X27-Linux (Media PC) - a living-room media box that boots straight into the X27 TV launcher, with the CachyOS LTS kernel, Jellyfin Desktop, Finamp, VLC, and LocalSend
 base-image: ghcr.io/blue-build/base-images/fedora-base
-image-version: 44
+image-version: 45
 
 # No desktop: fedora-base is Fedora Atomic without one, and X27 TV (x27-tv/ in this repo)
 # runs as a labwc kiosk session on tty1 instead. The non-KDE parts of recipe-lts.yml are

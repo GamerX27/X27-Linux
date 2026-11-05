@@ -4,7 +4,7 @@
 name: x27-linux
 description: X27-Linux - custom Fedora Kinoite with X27 config, KDE tweaks, and Brave Origin
 base-image: ghcr.io/blue-build/base-images/fedora-kinoite
-image-version: 44
+image-version: 45
 
 modules:
   # system config, plus the base taskbar overlay: Brave/Dolphin/Konsole pins.

@@ -3,7 +3,7 @@
 name: x27-linux-desktop
 description: X27-Linux (Desktop) - X27-Linux for daily use, plus Zed, Docker, Netbird, and everyday Flatpak apps
 base-image: ghcr.io/gamerx27/x27-linux
-image-version: 44
+image-version: 45
 
 # Builds on x27-linux (recipe.yml): system config, Brave, VLC/Bazaar, topgrade, the CachyOS
 # kernel and cachyos-settings, and the dnf guard all come from there. build.yml builds it first.

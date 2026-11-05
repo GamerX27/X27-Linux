@@ -63,7 +63,7 @@ The apps on the home row are Flatpaks, and the launcher offers to install missin
 
 ### Testing in a VM (from a CLI-only Fedora)
 
-1. Install Fedora 44 Server, or Everything with "Minimal Install", with no desktop.
+1. Install Fedora 45 Server, or Everything with "Minimal Install", with no desktop.
    Create a normal user with admin (sudo) rights during setup.
 2. Log in on the console as that user:
    ```

@@ -4,7 +4,7 @@
 name: x27-linux-gaming
 description: X27-Linux (Gaming) - X27-Linux plus Steam, Faugus, Heroic, and full GStreamer codecs, on the base image's full codecs and VA-API/Vulkan drivers
 base-image: ghcr.io/gamerx27/x27-linux
-image-version: 44
+image-version: 45
 
 # Builds on x27-linux (recipe.yml): system config, Brave, VLC/Bazaar, topgrade, the CachyOS
 # kernel and cachyos-settings, and the dnf guard all come from there. build.yml builds it first.
