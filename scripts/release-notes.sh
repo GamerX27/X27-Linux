@@ -78,8 +78,11 @@ version_of() {
 }
 
 # --- Notes ---------------------------------------------------------------------------
-NOTES="${WORK}/notes.md"
-{
+# write_notes 1 includes each image's changed-package table; write_notes 0 leaves the
+# tables out (the counts stay) for when they don't fit in a release body.
+write_notes() {
+  local tables="$1"
+  {
   if [[ "$EVENT" == schedule ]]; then
     echo "Weekly rebuild: picks up the latest Kinoite ${FEDORA}, Brave and CachyOS kernel updates."
   else
@@ -137,7 +140,7 @@ NOTES="${WORK}/notes.md"
     removed="$(grep -c '^removed ' <<<"$changes" || true)"
     echo "${updated} updated, ${added} added, ${removed} removed ($(wc -l <"$new") packages)."
     echo
-    if [[ -n "$changes" ]]; then
+    if [[ -n "$changes" && "$tables" == 1 ]]; then
       echo "<details><summary>Package list</summary>"
       echo
       echo "| Package | Change |"
@@ -162,7 +165,18 @@ NOTES="${WORK}/notes.md"
   done
   echo
   echo "Update with \`topgrade\`."
-} >"$NOTES"
+  }
+}
+
+NOTES="${WORK}/notes.md"
+write_notes 1 >"$NOTES"
+# GitHub rejects release bodies over 125000 characters. A big jump (e.g. a new Fedora
+# version, where nearly every package changes) overflows it, so drop the tables then;
+# the full package lists are attached to the release.
+if (( $(wc -m <"$NOTES") > 120000 )); then
+  write_notes 0 >"$NOTES"
+  printf '\nToo many package changes to list here; compare the attached `packages-*.txt` with the previous release'"'"'s.\n' >>"$NOTES"
+fi
 
 if [[ "${DRY_RUN:-0}" == 1 ]]; then
   echo "TAG=${TAG}"
