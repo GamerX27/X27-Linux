@@ -166,30 +166,17 @@ modules:
                  test -f "/usr/lib64/dri/${drv}_drv_video.so" || { echo "missing VA-API driver: ${drv}" >&2; exit 1; }; \
                done \
             && rpm -q kernel-core \
-            && ! rpm -qa | grep -q '^kernel-cachyos'
+            && ! rpm -qa | grep -q -i cachyos
 
-  # CachyOS userspace tuning from bieszczaders/kernel-cachyos-addons: cachyos-settings (sysctl,
-  # zram, udev, ntsync, systemd-oomd). It replaces two stock config packages it ships the same
-  # files as: zram-generator-defaults (the swap) and systemd-oomd-defaults (removed first:
-  # otherwise dnf falls back to an older cachyos-settings build that doesn't declare the
-  # conflict and then fails on the shared oomd file). Nothing else requires either.
-  # Before initramfs: it adds modprobe.d/udev rules. Works on the stock kernel; no sched-ext
-  # schedulers.
+  # No CachyOS packages: stock Fedora kernel, zram, and systemd-oomd defaults.
+  # Plymouth theme before initramfs, which copies it in; no -R, the initramfs module rebuilds it.
   - type: containerfile
     snippets:
-      - |
-        RUN dnf5 -y copr enable bieszczaders/kernel-cachyos-addons \
-            && dnf5 -y remove systemd-oomd-defaults \
-            && dnf5 -y swap zram-generator-defaults cachyos-settings \
-            && dnf5 -y copr disable bieszczaders/kernel-cachyos-addons \
-            && rpm -q cachyos-settings
-      # Before initramfs, which copies the theme in; no -R, the initramfs module rebuilds it.
       - |
         RUN plymouth-set-default-theme bgrt \
             && test "$(plymouth-set-default-theme)" = bgrt
 
-  # Regenerates initramfs to pick up cachyos-settings' modprobe.d/udev rules and the plymouth
-  # theme above. Must run after them.
+  # Regenerates initramfs to pick up the plymouth theme above. Must run after it.
   - type: initramfs
 
   # Sanity check: files/base's layout.js pins these desktop files in the taskbar.

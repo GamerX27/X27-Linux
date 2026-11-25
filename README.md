@@ -36,7 +36,6 @@ The LTS, Gaming, Desktop, and Media PC images are no longer built, see
   taskbar (new accounts only)
 - Hot corners and the shake-to-locate-cursor effect disabled (new accounts only)
 - Stock Fedora kernel: works with Secure Boot and on any x86_64 CPU
-- CachyOS tuning: sysctl, zram, I/O schedulers, `ntsync` (see [CachyOS tuning](#cachyos-tuning))
 - Baloo file indexing off by default, so the first login doesn't index the whole disk.
   KRunner still finds apps and file names; Dolphin's search inside file contents needs it.
   Turn it on in System Settings → Search → File Search, or `balooctl6 enable`
@@ -106,7 +105,8 @@ are no longer rebuilt. Move to `x27-linux` with the two rebases in
 - **Gaming and Desktop** lose their extras (Steam, Heroic, Faugus, the sched-ext
   schedulers; Zed, Docker, Netbird, and the extra Flatpaks). Already-installed
   Flatpaks stay.
-- **All of them** move from the CachyOS kernel to the stock Fedora kernel. If you
+- **All of them** move from the CachyOS kernel and CachyOS tuning (`cachyos-settings`)
+  to the stock Fedora kernel and Fedora's own zram and systemd-oomd defaults. If you
   turned off Secure Boot only for the CachyOS kernel, you can turn it back on.
 - **Media PC** (X27 TV) goes back to a KDE Plasma desktop with an SDDM login. Its
   installer set the default boot target to text mode, since there was no display
@@ -176,16 +176,9 @@ sudo flatpak remote-modify --disable fedora fedora-testing
 
 ## Kernel
 
-The stock Fedora kernel, signed by Fedora, so Secure Boot works. Earlier builds
-shipped the CachyOS kernel instead.
-
-## CachyOS tuning
-
-`cachyos-settings` from the
-[kernel-cachyos-addons](https://copr.fedorainfracloud.org/coprs/bieszczaders/kernel-cachyos-addons/)
-COPR: CachyOS sysctl, zram (zstd, sized to RAM), udev I/O scheduler rules,
-`ntsync`, and the `game-performance`, `zink-run`, and `kerver` commands. These
-work on the stock kernel; there are no sched-ext schedulers.
+The stock Fedora kernel, signed by Fedora, so Secure Boot works, with Fedora's own
+zram and systemd-oomd defaults. Nothing from CachyOS: earlier builds shipped the
+CachyOS kernel and its tuning (`cachyos-settings`).
 
 ## Build
 
