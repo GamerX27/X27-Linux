@@ -39,6 +39,9 @@ The LTS, Gaming, Desktop, and Media PC images are no longer built, see
 - Baloo file indexing off by default, so the first login doesn't index the whole disk.
   KRunner still finds apps and file names; Dolphin's search inside file contents needs it.
   Turn it on in System Settings → Search → File Search, or `balooctl6 enable`
+- `x27-clock`: switch the Plasma clock between 12- and 24-hour time from a terminal,
+  right away: `x27-clock 12`, `x27-clock 24`, `x27-clock` (toggle), or
+  `x27-clock status`. Run it as yourself, no `sudo`. The default is 24-hour
 - `dnf` disabled on the installed system (see [Installing software](#installing-software))
 - Updates itself, see [Auto-updates](#auto-updates)
 - `/etc/os-release` names the image and build, e.g. `X27-Linux 45 (2026-09-22)`

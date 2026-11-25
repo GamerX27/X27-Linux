@@ -1,0 +1,108 @@
+#!/usr/bin/bash
+# x27-clock: switch the Plasma clock between 12- and 24-hour time, for the logged-in user.
+# Changes every digital clock widget (panels and desktop) right away, through plasmashell's
+# scripting D-Bus API; nothing to restart. The setting is the widget's own "Time display"
+# option (use24hFormat: 0 = 12-hour, 1 = region default, 2 = 24-hour).
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: x27-clock [12|24|toggle|status]
+
+  12       12-hour clock (1:30 PM)
+  24       24-hour clock (13:30)
+  toggle   switch between the two (the default)
+  status   show the current format
+
+Changes the clock in the Plasma panel right away. Run it as yourself, without sudo,
+inside your Plasma session.
+EOF
+}
+
+# Runs a Plasma script and prints what it print()s.
+plasma_script() {
+    local reply
+    if ! reply=$(gdbus call --session --dest org.kde.plasmashell --object-path /PlasmaShell \
+            --method org.kde.PlasmaShell.evaluateScript "$1" 2>&1); then
+        echo "x27-clock: can't reach the Plasma shell. Run this inside your Plasma session." >&2
+        echo "$reply" >&2
+        exit 1
+    fi
+    # gdbus wraps the result as ('...',)
+    reply=${reply#\(\'}
+    reply=${reply%\',)}
+    printf '%s\n' "$reply"
+}
+
+# The use24hFormat value of each clock, space separated.
+read_formats() {
+    plasma_script '
+var out = [];
+panels().concat(desktops()).forEach(function (c) {
+  c.widgets("org.kde.plasma.digitalclock").forEach(function (w) {
+    w.currentConfigGroup = ["Appearance"];
+    out.push(w.readConfig("use24hFormat", 1));
+  });
+});
+print(out.join(" "));'
+}
+
+write_format() {
+    plasma_script "
+var n = 0;
+panels().concat(desktops()).forEach(function (c) {
+  c.widgets(\"org.kde.plasma.digitalclock\").forEach(function (w) {
+    w.currentConfigGroup = [\"Appearance\"];
+    w.writeConfig(\"use24hFormat\", $1);
+    w.reloadConfig();
+    n++;
+  });
+});
+print(n);"
+}
+
+# 12 or 24 for a use24hFormat value; 1 (region default) follows the locale's time format.
+effective() {
+    case $1 in
+        0) echo 12 ;;
+        2) echo 24 ;;
+        *) if locale t_fmt 2>/dev/null | grep -q -e '%p' -e '%r' -e '%I' -e '%l'; then
+               echo 12
+           else
+               echo 24
+           fi ;;
+    esac
+}
+
+if [[ $EUID -eq 0 ]]; then
+    echo "x27-clock: run it as yourself, not with sudo: it changes your own Plasma clock." >&2
+    exit 1
+fi
+
+action=${1:-toggle}
+case $action in
+    -h|--help|help) usage; exit 0 ;;
+    12|24|toggle|status) ;;
+    *) usage >&2; exit 2 ;;
+esac
+
+read -ra formats <<<"$(read_formats)"
+if (( ${#formats[@]} == 0 )); then
+    echo "x27-clock: no clock widget found in the Plasma panel or on the desktop." >&2
+    exit 1
+fi
+current=$(effective "${formats[0]}")
+
+case $action in
+    status)
+        echo "${current}-hour"
+        exit 0 ;;
+    toggle)
+        if [[ $current == 24 ]]; then want=12; else want=24; fi ;;
+    *)
+        want=$action ;;
+esac
+
+if [[ $want == 12 ]]; then value=0; else value=2; fi
+count=$(write_format "$value")
+echo "Clock set to ${want}-hour (${count} clock$([[ $count == 1 ]] || echo s))."

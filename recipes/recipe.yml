@@ -192,7 +192,8 @@ modules:
             && test -f /usr/share/applications/org.jellyfin.JellyfinDesktop.desktop \
             && rpm -q vlc vlc-plugin-ffmpeg finamp jellyfin-desktop easyeffects kwrite \
             && test -f /usr/share/applications/org.kde.kwrite.desktop \
-            && ! rpm -q kate
+            && ! rpm -q kate \
+            && test -x /usr/bin/x27-clock
 
   # Brave Origin stays stock: no make_brave_great_again.sh. x-linuxtool is still included.
   - type: containerfile
