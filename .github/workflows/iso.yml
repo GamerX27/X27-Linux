@@ -2,18 +2,6 @@ name: build-iso
 on:
   workflow_dispatch:
     inputs:
-      image:
-        description: "Image to build an installer for (all builds every image)"
-        required: false
-        default: x27-linux
-        type: choice
-        options:
-          - all
-          - x27-linux
-          - x27-linux-lts
-          - x27-linux-gaming
-          - x27-linux-desktop
-          - x27-linux-media-pc
       tag:
         description: "Image tag the ISO installs; the installed system keeps following it"
         required: false
@@ -34,18 +22,10 @@ concurrency:
 
 jobs:
   build-iso:
-    name: Build ISO (${{ matrix.image }})
+    name: Build ISO
     # GitHub only: skip on the Forgejo mirror (git.xlabsx27.com), whose Actions also read .github/workflows.
     if: github.server_url == 'https://github.com'
     runs-on: ubuntu-latest
-    # cleanup_only runs a single x27-linux job, the only image mirrored to the Internet Archive.
-    strategy:
-      fail-fast: false
-      matrix:
-        image: >-
-          ${{ fromJSON(inputs.cleanup_only && '["x27-linux"]'
-          || inputs.image == 'all' && '["x27-linux","x27-linux-lts","x27-linux-gaming","x27-linux-desktop","x27-linux-media-pc"]'
-          || format('["{0}"]', inputs.image)) }}
     permissions:
       contents: read
       packages: read
@@ -62,31 +42,28 @@ jobs:
       # whose lorax templates strip /usr/sbin/load_policy. Anaconda 44.30 runs it on exit, crashes,
       # and hangs at the end-of-install Reboot button. v1.5.0 keeps it. Same inputs BlueBuild passed,
       # plus the Flatpaks in flatpak_refs/ (and their runtimes), which Anaconda installs offline.
-      # Media PC uses flatpak_refs-media-pc/ instead: its whole home row, so the TV has its apps
-      # before anyone has set up Wi-Fi.
       - name: Generate ISO
         if: ${{ !inputs.cleanup_only }}
         uses: JasonN3/build-container-installer@v1.5.0
         with:
           image_repo: ghcr.io/gamerx27
-          image_name: ${{ matrix.image }}
+          image_name: x27-linux
           image_tag: ${{ inputs.tag }}
           version: "45"
           # Picks Anaconda's profile. Kinoite's hides user creation (KDE's Plasma Setup does it on
-          # first boot); Media PC has no KDE, and sway-atomic has no profile, so Anaconda falls
-          # back to plain Fedora, which asks for a user.
-          variant: ${{ matrix.image == 'x27-linux-media-pc' && 'sway-atomic' || 'kinoite' }}
-          iso_name: ${{ matrix.image }}.iso
+          # first boot).
+          variant: kinoite
+          iso_name: x27-linux.iso
           secure_boot_key_url: https://github.com/ublue-os/bazzite/raw/main/secure_boot.der
           enrollment_password: universalblue
           web_ui: "false"
           flatpak_remote_name: flathub
           flatpak_remote_url: https://flathub.org/repo/flathub.flatpakrepo
-          flatpak_remote_refs_dir: ${{ matrix.image == 'x27-linux-media-pc' && 'flatpak_refs-media-pc' || 'flatpak_refs' }}
+          flatpak_remote_refs_dir: flatpak_refs
 
       - name: Generate checksum
         if: ${{ !inputs.cleanup_only }}
-        run: sha256sum ${{ matrix.image }}.iso > ${{ matrix.image }}.iso.sha256sum
+        run: sha256sum x27-linux.iso > x27-linux.iso.sha256sum
 
       # Not a GitHub Release: the ISO exceeds Releases' 2 GiB per-asset limit. Artifacts
       # have no such cap, at the cost of requiring GitHub login and a 60-day expiry.
@@ -94,17 +71,17 @@ jobs:
         if: ${{ !inputs.cleanup_only }}
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.image }}-iso
+          name: x27-linux-iso
           path: |
-            ${{ matrix.image }}.iso
-            ${{ matrix.image }}.iso.sha256sum
+            x27-linux.iso
+            x27-linux.iso.sha256sum
           if-no-files-found: error
           retention-days: 60
 
       # Public, permanent, no-login mirror. Re-running this uploads over the same
       # archive.org item (identifier stays fixed), so the download link never changes.
       - name: Upload ISO to Internet Archive
-        if: ${{ !inputs.cleanup_only && matrix.image == 'x27-linux' }}
+        if: ${{ !inputs.cleanup_only }}
         env:
           IA_ACCESS_KEY_ID: ${{ secrets.IA_ACCESS_KEY }}
           IA_SECRET_ACCESS_KEY: ${{ secrets.IA_SECRET_KEY }}
@@ -126,7 +103,6 @@ jobs:
       # backups every time. Unverified here (no archive.org write access in this sandbox):
       # `ia delete --glob` matching remote paths.
       - name: Prune superseded Internet Archive versions
-        if: ${{ matrix.image == 'x27-linux' }}
         env:
           IA_ACCESS_KEY_ID: ${{ secrets.IA_ACCESS_KEY }}
           IA_SECRET_ACCESS_KEY: ${{ secrets.IA_SECRET_KEY }}

@@ -22,11 +22,11 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 # name:image pairs, in the order they appear in the notes.
-IMAGES=("base:x27-linux" "lts:x27-linux-lts" "gaming:x27-linux-gaming" "desktop:x27-linux-desktop" "media-pc:x27-linux-media-pc")
+IMAGES=("base:x27-linux")
 
 # name:package pairs for the Highlights table, each read from that image's package list.
 HIGHLIGHTS=(
-  "base:fedora-release-common" "base:kernel-cachyos" "lts:kernel-cachyos-lts" "base:plasma-workspace"
+  "base:fedora-release-common" "base:kernel-core" "base:plasma-workspace"
   "base:mesa-dri-drivers" "base:systemd" "base:brave-origin" "base:rpm-ostree"
 )
 
@@ -91,7 +91,7 @@ write_notes() {
   local tables="$1"
   {
   if [[ "$EVENT" == schedule ]]; then
-    echo "Weekly rebuild: picks up the latest Kinoite ${FEDORA}, Brave and CachyOS kernel updates."
+    echo "Weekly rebuild: picks up the latest Kinoite ${FEDORA}, Brave, kernel and codec updates."
   else
     echo "Minor release: repo changes since the last release."
   fi

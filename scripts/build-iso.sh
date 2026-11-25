@@ -8,18 +8,14 @@ MIN_FREE_GB=20
 INSTALLER_IMAGE="ghcr.io/jasonn3/build-container-installer:v1.5.0"
 
 usage() {
-  echo "Usage: $0 [--usb] [--tag TAG] [base|lts|gaming|desktop|media-pc]"
-  echo "  base       x27-linux (default)"
-  echo "  lts        x27-linux-lts"
-  echo "  gaming     x27-linux-gaming"
-  echo "  desktop    x27-linux-desktop"
-  echo "  media-pc   x27-linux-media-pc"
+  echo "Usage: $0 [--usb] [--tag TAG]"
+  echo "  Builds an installer ISO for x27-linux."
   echo "  --usb      write the ISO to a USB drive after building"
   echo "  --tag TAG  image tag to install and follow: 45, latest, or a dated tag like"
   echo "             20260922-45. Asks if not given; 45 without a terminal."
 }
 
-TARGET=""
+IMAGE="x27-linux"
 USB=0
 TAG=""
 
@@ -117,40 +113,18 @@ while [ "$#" -gt 0 ]; do
       exit 1
       ;;
     *)
-      if [ -n "$TARGET" ]; then
-        echo "Unexpected extra argument: $1" >&2
-        usage >&2
-        exit 1
-      fi
-      TARGET="$1"
+      echo "Unexpected argument: $1" >&2
+      usage >&2
+      exit 1
       ;;
   esac
   shift
 done
-TARGET="${TARGET:-base}"
-
-case "$TARGET" in
-  base)     IMAGE="x27-linux" ;;
-  lts)      IMAGE="x27-linux-lts" ;;
-  gaming)   IMAGE="x27-linux-gaming" ;;
-  desktop)  IMAGE="x27-linux-desktop" ;;
-  media-pc) IMAGE="x27-linux-media-pc" ;;
-  *)
-    echo "Unknown target: $TARGET" >&2
-    usage >&2
-    exit 1
-    ;;
-esac
 
 # Picks Anaconda's profile. Kinoite's hides user creation (KDE's Plasma Setup does it on
-# first boot), so Media PC, which has no KDE, uses sway-atomic: Anaconda has no profile for
-# it and falls back to plain Fedora, which asks for a user.
+# first boot).
 VARIANT=kinoite
 REFS_DIR="${REPO_ROOT}/flatpak_refs"
-if [ "$TARGET" = media-pc ]; then
-  VARIANT=sway-atomic
-  REFS_DIR="${REPO_ROOT}/flatpak_refs-media-pc"
-fi
 
 # The installed system keeps following this tag on updates.
 if [ -z "$TAG" ]; then
@@ -196,9 +170,9 @@ if [ "$AVAIL_GB" -lt "$MIN_FREE_GB" ]; then
   echo "WARNING: only ${AVAIL_GB}GB free at ${OUT_DIR}, ${MIN_FREE_GB}GB+ recommended."
 fi
 
-# Flatpaks in flatpak_refs/ (flatpak_refs-media-pc/ for Media PC: its whole home row) plus
-# their runtimes, pulled into an ostree repo by the image itself (same steps as
-# build-container-installer's flatpaks/Makefile). Anaconda installs them offline from the ISO.
+# Flatpaks in flatpak_refs/ plus their runtimes, pulled into an ostree repo by the image
+# itself (same steps as build-container-installer's flatpaks/Makefile). Anaconda installs
+# them offline from the ISO.
 FLATPAK_REFS="$(cat "${REFS_DIR}"/* | tr '\n' ' ')"
 FLATPAK_DIR="${OUT_DIR}/flatpak"
 mkdir -p "$FLATPAK_DIR"
