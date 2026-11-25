@@ -79,15 +79,27 @@ systemctl reboot
 
 Systems on `:latest` move to 45 by themselves.
 
-## Migrating from the other images
+## New signing key (November 2026)
 
-`x27-linux-lts`, `x27-linux-gaming`, `x27-linux-desktop`, and `x27-linux-media-pc`
-are no longer rebuilt. Move to `x27-linux` with one rebase, then a reboot:
+Images are signed with a new key from November 2026. Installed systems still
+check updates against the old one, so they reject the new builds until they
+switch over once: rebase unverified, which brings the new key along, then back
+to verified pulls. Run this on every existing install, whichever image it's on:
 
 ```
+sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/gamerx27/x27-linux:45
+systemctl reboot
 sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/gamerx27/x27-linux:45
 systemctl reboot
 ```
+
+Fresh installs from a new ISO already have the new key.
+
+## Migrating from the other images
+
+`x27-linux-lts`, `x27-linux-gaming`, `x27-linux-desktop`, and `x27-linux-media-pc`
+are no longer rebuilt. Move to `x27-linux` with the two rebases in
+[New signing key](#new-signing-key-november-2026) above.
 
 - **Gaming and Desktop** lose their extras (Steam, Heroic, Faugus, the sched-ext
   schedulers; Zed, Docker, Netbird, and the extra Flatpaks). Already-installed
