@@ -65,6 +65,7 @@ modules:
         - vlc-plugin-ffmpeg
         - finamp
         - jellyfin-desktop
+        - easyeffects
         - virtualbox-guest-additions
     remove:
       packages:
@@ -74,7 +75,6 @@ modules:
         - kate
         - kate-plugins
         - kate-krunner-plugin
-        - kwrite
         - filelight
         - kcharselect
         - kfind
@@ -86,25 +86,25 @@ modules:
         - python3-s3transfer
         - plasma-workspace-wallpapers
 
-  # The ISO embeds these (flatpak_refs/) and installs them offline; BlueBuild empties /var, so
-  # they can't ship in the image itself. This installs them on first boot for systems that
-  # rebased instead. Bazaar, VLC, Finamp, and Jellyfin Desktop are RPMs now (above); the remove
-  # list uninstalls their old Flatpaks.
+  # No Flatpaks by default: every app is a native RPM. KWrite is the Kinoite base's own (it
+  # only needs kate-libs, which stays); Bazaar, VLC, Finamp, Jellyfin Desktop, and EasyEffects
+  # are installed above. Kate, Filelight, KCharSelect, and KFind are dropped (removed above). This module still sets up
+  # the Flathub remote for Bazaar, and its remove list uninstalls the Flatpaks earlier builds
+  # installed, on rebased systems.
   - type: default-flatpaks@v1
     notify: true
     system:
-      install:
+      remove:
+        - io.github.kolunmi.Bazaar
+        - org.videolan.VLC
+        - com.unicornsonlsd.finamp
+        - org.jellyfin.JellyfinDesktop
         - org.kde.kate
         - org.kde.kwrite
         - org.kde.filelight
         - org.kde.kcharselect
         - org.kde.kfind
         - com.github.wwmm.easyeffects
-      remove:
-        - io.github.kolunmi.Bazaar
-        - org.videolan.VLC
-        - com.unicornsonlsd.finamp
-        - org.jellyfin.JellyfinDesktop
 
   # Auto-updates: the image is staged in the background and used on the next reboot, and
   # Flatpaks update daily. bootc-fetch-apply-updates.timer stays masked since it reboots.
@@ -169,13 +169,17 @@ modules:
             && ! rpm -qa | grep -q '^kernel-cachyos'
 
   # CachyOS userspace tuning from bieszczaders/kernel-cachyos-addons: cachyos-settings (sysctl,
-  # zram, udev, ntsync). cachyos-settings Conflicts with zram-generator-defaults, hence the
-  # swap. Before initramfs: it adds modprobe.d/udev rules. Works on the stock kernel; no
-  # sched-ext schedulers.
+  # zram, udev, ntsync, systemd-oomd). It replaces two stock config packages it ships the same
+  # files as: zram-generator-defaults (the swap) and systemd-oomd-defaults (removed first:
+  # otherwise dnf falls back to an older cachyos-settings build that doesn't declare the
+  # conflict and then fails on the shared oomd file). Nothing else requires either.
+  # Before initramfs: it adds modprobe.d/udev rules. Works on the stock kernel; no sched-ext
+  # schedulers.
   - type: containerfile
     snippets:
       - |
         RUN dnf5 -y copr enable bieszczaders/kernel-cachyos-addons \
+            && dnf5 -y remove systemd-oomd-defaults \
             && dnf5 -y swap zram-generator-defaults cachyos-settings \
             && dnf5 -y copr disable bieszczaders/kernel-cachyos-addons \
             && rpm -q cachyos-settings
@@ -199,7 +203,9 @@ modules:
             && test -f /usr/share/applications/vlc.desktop \
             && test -f /usr/share/applications/com.unicornsonlsd.finamp.desktop \
             && test -f /usr/share/applications/org.jellyfin.JellyfinDesktop.desktop \
-            && rpm -q vlc vlc-plugin-ffmpeg finamp jellyfin-desktop
+            && rpm -q vlc vlc-plugin-ffmpeg finamp jellyfin-desktop easyeffects kwrite \
+            && test -f /usr/share/applications/org.kde.kwrite.desktop \
+            && ! rpm -q kate
 
   # Brave Origin stays stock: no make_brave_great_again.sh. x-linuxtool is still included.
   - type: containerfile

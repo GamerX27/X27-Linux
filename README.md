@@ -23,8 +23,10 @@ The LTS, Gaming, Desktop, and Media PC images are no longer built, see
   [X-Linuxtool](https://codeberg.org/X27/X-Linuxtool) (`x-linuxtool`)
 - Bazaar replacing Discover, as an RPM from ublue-os/packages like Bazzite. Its
   apps show up in KRunner (`krunner-bazaar`)
-- Kate, KWrite, Filelight, KCharSelect, KFind, and EasyEffects as Flatpaks instead of RPMs.
-  The ISO carries them and installs them offline; rebased systems get them on first boot
+- KWrite (text editor) and EasyEffects (audio effects and EQ), native too. No Flatpaks are
+  installed by default; Bazaar and Flathub are there for any you add. Removed from the KDE
+  base: Kate, Filelight, KCharSelect, KFind. Rebased systems drop the Flatpak versions
+  earlier builds installed
 - Full codecs: ffmpeg (x264, x265, fdk-aac, AV1), the full GStreamer plugins (bad, ugly,
   libav, openh264), and Cisco's openh264, from negativo17 and Fedora's Cisco repo
 - Hardware video decode/encode on AMD and Intel through VA-API: Mesa's `radeonsi` for AMD,

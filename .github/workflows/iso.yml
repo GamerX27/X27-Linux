@@ -40,8 +40,8 @@ jobs:
 
       # Not `bluebuild generate-iso`: BlueBuild CLI (v0.9.37) pins build-container-installer v1.4.0,
       # whose lorax templates strip /usr/sbin/load_policy. Anaconda 44.30 runs it on exit, crashes,
-      # and hangs at the end-of-install Reboot button. v1.5.0 keeps it. Same inputs BlueBuild passed,
-      # plus the Flatpaks in flatpak_refs/ (and their runtimes), which Anaconda installs offline.
+      # and hangs at the end-of-install Reboot button. v1.5.0 keeps it. Same inputs BlueBuild passed.
+      # No Flatpaks embedded: every app is in the image.
       - name: Generate ISO
         if: ${{ !inputs.cleanup_only }}
         uses: JasonN3/build-container-installer@v1.5.0
@@ -57,9 +57,6 @@ jobs:
           secure_boot_key_url: https://github.com/ublue-os/bazzite/raw/main/secure_boot.der
           enrollment_password: universalblue
           web_ui: "false"
-          flatpak_remote_name: flathub
-          flatpak_remote_url: https://flathub.org/repo/flathub.flatpakrepo
-          flatpak_remote_refs_dir: flatpak_refs
 
       - name: Generate checksum
         if: ${{ !inputs.cleanup_only }}

@@ -124,7 +124,6 @@ done
 # Picks Anaconda's profile. Kinoite's hides user creation (KDE's Plasma Setup does it on
 # first boot).
 VARIANT=kinoite
-REFS_DIR="${REPO_ROOT}/flatpak_refs"
 
 # The installed system keeps following this tag on updates.
 if [ -z "$TAG" ]; then
@@ -160,8 +159,7 @@ fi
 
 mkdir -p "$OUT_DIR"
 
-# Root-owned files from earlier builds (build-container-installer's -CHECKSUM, flatpak/)
-# need sudo.
+# Root-owned files from earlier builds (build-container-installer's -CHECKSUM) need sudo.
 echo "Removing old files in ${OUT_DIR}"
 sudo find "$OUT_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 
@@ -170,55 +168,11 @@ if [ "$AVAIL_GB" -lt "$MIN_FREE_GB" ]; then
   echo "WARNING: only ${AVAIL_GB}GB free at ${OUT_DIR}, ${MIN_FREE_GB}GB+ recommended."
 fi
 
-# Flatpaks in flatpak_refs/ plus their runtimes, pulled into an ostree repo by the image
-# itself (same steps as build-container-installer's flatpaks/Makefile). Anaconda installs
-# them offline from the ISO.
-FLATPAK_REFS="$(cat "${REFS_DIR}"/* | tr '\n' ' ')"
-FLATPAK_DIR="${OUT_DIR}/flatpak"
-mkdir -p "$FLATPAK_DIR"
-
-# Removes the image pulled from GHCR (unless it was already here) and the Flatpak repo on
-# exit, whether the build succeeded or not.
-PULLED=0
-sudo docker image inspect "$IMAGE_REF" >/dev/null 2>&1 || PULLED=1
-cleanup() {
-  sudo rm -rf "$FLATPAK_DIR"
-  if [ "$PULLED" = 1 ]; then
-    echo "Removing ${IMAGE_REF}"
-    sudo docker rmi "$IMAGE_REF" >/dev/null 2>&1 || true
-  fi
-}
-trap cleanup EXIT
-
-# --network host on both containers: Docker's bridge network intermittently refused
-# connections here (Flathub, ciscobinary.openh264.org) while the host reached them fine.
-echo "Collecting Flatpaks: ${FLATPAK_REFS}"
-sudo docker pull "$IMAGE_REF"
-sudo docker run --rm --privileged --network host --entrypoint bash \
-  -e FLATPAK_SYSTEM_DIR=/flatpak/flatpak \
-  -e FLATPAK_TRIGGERSDIR=/flatpak/triggers \
-  -e "REFS=${FLATPAK_REFS}" \
-  -v "${FLATPAK_DIR}:/flatpak_dir" \
-  "$IMAGE_REF" -euc '
-    mkdir -p /flatpak/flatpak /flatpak/triggers /var/tmp
-    chmod -R 1777 /var/tmp
-    flatpak config --system --set languages "*"
-    flatpak remote-add --system flathub https://flathub.org/repo/flathub.flatpakrepo
-    flatpak install --system -y $REFS
-    ostree init --repo=/flatpak_dir/repo --mode=archive-z2
-    for i in $(ostree refs --repo=$FLATPAK_SYSTEM_DIR/repo | grep "^deploy/" | sed "s/^deploy\///"); do
-      echo "Copying $i..."
-      rev=$(ostree --repo=$FLATPAK_SYSTEM_DIR/repo rev-parse flathub/$i)
-      ostree --repo=/flatpak_dir/repo pull-local $FLATPAK_SYSTEM_DIR/repo $rev
-      mkdir -p $(dirname /flatpak_dir/repo/refs/heads/$i)
-      echo $rev > /flatpak_dir/repo/refs/heads/$i
-    done
-    flatpak build-update-repo /flatpak_dir/repo
-    ostree refs --repo=/flatpak_dir/repo | tee /flatpak_dir/list.txt'
-
 # Not `bluebuild generate-iso`: BlueBuild CLI (v0.9.37) pins build-container-installer v1.4.0,
 # whose lorax templates strip /usr/sbin/load_policy. Anaconda 44.30 runs it on exit, crashes,
 # and hangs at the end-of-install Reboot button. v1.5.0 keeps it. Same args BlueBuild passed.
+# No Flatpaks embedded: every app is in the image. build-container-installer pulls the
+# image itself.
 echo "Building ${ISO_NAME} from ${IMAGE_REF}"
 sudo docker run --rm --privileged --network host \
   -v "${OUT_DIR}:/build-container-installer/build" \
@@ -233,11 +187,7 @@ sudo docker run --rm --privileged --network host \
   "IMAGE_NAME=${IMAGE}" \
   "IMAGE_REPO=${REGISTRY}" \
   "IMAGE_TAG=${TAG}" \
-  VERSION=45 \
-  FLATPAK_REMOTE_NAME=flathub \
-  FLATPAK_REMOTE_URL=https://flathub.org/repo/flathub.flatpakrepo \
-  "FLATPAK_REMOTE_REFS=${FLATPAK_REFS}" \
-  FLATPAK_DIR=/build-container-installer/build/flatpak
+  VERSION=45
 cd "$OUT_DIR"
 sudo chown "$(id -un):$(id -gn)" "$ISO_NAME"
 sudo rm -f "${ISO_NAME}-CHECKSUM"

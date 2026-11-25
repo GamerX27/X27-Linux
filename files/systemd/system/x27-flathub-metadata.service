@@ -3,13 +3,15 @@ Description=Pin the Flathub remote's title and URL
 Before=display-manager.service
 ConditionPathExists=!/var/lib/x27-linux/flathub-remote
 
-# Flathub's summary carries xa.title and xa.redirect-url. The Anaconda-created remote has no
-# title, so sandboxed Bazaar sees a config change and hands the system helper a summary file
-# in its own /tmp, which the helper can't open. Marking both keys as set skips that check.
+# Flathub's summary carries xa.title and xa.redirect-url. The Anaconda-created remote on
+# installs from older ISOs has no title, so sandboxed Bazaar sees a config change and hands the
+# system helper a summary file in its own /tmp, which the helper can't open. Marking both keys
+# as set skips that check. Newer ISOs embed no Flatpaks, so there may be no remote yet (the
+# default-flatpaks module adds it, with its title): "-" lets that pass.
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/bin/flatpak remote-modify --system --title=Flathub --url=https://dl.flathub.org/repo/ flathub
+ExecStart=-/usr/bin/flatpak remote-modify --system --title=Flathub --url=https://dl.flathub.org/repo/ flathub
 ExecStart=/bin/sh -c 'mkdir -p /var/lib/x27-linux && touch /var/lib/x27-linux/flathub-remote'
 
 [Install]
