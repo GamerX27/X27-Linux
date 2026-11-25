@@ -1,1 +1,6 @@
-app/org.videolan.VLC/x86_64/stable
+app/org.kde.kate/x86_64/stable
+app/org.kde.kwrite/x86_64/stable
+app/org.kde.filelight/x86_64/stable
+app/org.kde.kcharselect/x86_64/stable
+app/org.kde.kfind/x86_64/stable
+app/com.github.wwmm.easyeffects/x86_64/stable

@@ -1,53 +1,53 @@
 # X27-Linux
 
-Custom Fedora Kinoite 45, built with [BlueBuild](https://blue-build.org/).
+Custom Fedora Kinoite 45, built with [BlueBuild](https://blue-build.org/): a KDE Plasma
+desktop with Jellyfin, Finamp, and VLC for a living-room media PC.
 
-- Base: `ghcr.io/gamerx27/x27-linux` — [recipe.yml](recipes/recipe.yml)
-- LTS kernel: `ghcr.io/gamerx27/x27-linux-lts` — [recipe-lts.yml](recipes/recipe-lts.yml)
-- Gaming: `ghcr.io/gamerx27/x27-linux-gaming` — [recipe-gaming.yml](recipes/recipe-gaming.yml), built on Base
-- Desktop: `ghcr.io/gamerx27/x27-linux-desktop` — [recipe-desktop.yml](recipes/recipe-desktop.yml), built on Base
-- Media PC: `ghcr.io/gamerx27/x27-linux-media-pc` — [recipe-media-pc.yml](recipes/recipe-media-pc.yml), no desktop: boots into the X27 TV launcher, with the LTS kernel
+- Image: `ghcr.io/gamerx27/x27-linux` — [recipe.yml](recipes/recipe.yml)
 
-Base, LTS, and Media PC build first; Gaming and Desktop build on top of Base once it finishes.
-
-The KDE parts below (Plasma theme, Konsole, Bazaar, taskbar pins) don't apply to Media PC,
-see [Media PC variant](#media-pc-variant).
+The LTS, Gaming, Desktop, and Media PC images are no longer built, see
+[Migrating from the other images](#migrating-from-the-other-images).
 
 ## What's in it
 
-- Brave (default browser), debranded with [X-Linuxtool](https://codeberg.org/X27/X-Linuxtool)
+- Brave Origin (default browser), stock: no debloat policies
+- Jellyfin Desktop, Finamp, and VLC, all native RPMs instead of Flatpaks:
+  - Jellyfin Desktop and Finamp from [X27-Linux-Packages](https://git.xlabsx27.com/X27/X27-Linux-Packages).
+    Jellyfin Desktop is built there from upstream's source, with HDMI-CEC support (control
+    it with the TV remote)
+  - VLC from Fedora
 - Removed: Firefox, KHelpCenter, Discover, the extra Plasma wallpapers (the defaults stay),
   the AWS Python SDK (boto3), and the kernel build tools (no out-of-tree modules on an image)
 - Dark theme, Papirus icons, Fish shell, Konsole terminal, fastfetch banner
-- fastfetch, htop, nvtop, nano, pciutils, lm_sensors, topgrade
+- fastfetch, htop, nvtop, nano, pciutils, lm_sensors, topgrade,
+  [X-Linuxtool](https://codeberg.org/X27/X-Linuxtool) (`x-linuxtool`)
 - Bazaar replacing Discover, as an RPM from ublue-os/packages like Bazzite. Its
   apps show up in KRunner (`krunner-bazaar`)
-- VLC (Flatpak). The ISO carries it and installs it offline; rebased systems get
-  it on first boot
-- Kate, KWrite, Filelight, KCharSelect, KFind, and EasyEffects as Flatpaks instead of RPMs,
-  installed on first boot
-- Full codecs (ffmpeg, x264/x265, fdk-aac) and hardware video decode/encode on AMD
-  and Intel (Mesa VA-API/Vulkan with H.264/HEVC/AV1, Intel media driver), from the
-  negativo17 multimedia packages in the BlueBuild base image. Check with `vainfo`
-- Brave, Dolphin, Konsole, and Bazaar pinned to the taskbar (new accounts only)
+- Kate, KWrite, Filelight, KCharSelect, KFind, and EasyEffects as Flatpaks instead of RPMs.
+  The ISO carries them and installs them offline; rebased systems get them on first boot
+- Full codecs: ffmpeg (x264, x265, fdk-aac, AV1), the full GStreamer plugins (bad, ugly,
+  libav, openh264), and Cisco's openh264, from negativo17 and Fedora's Cisco repo
+- Hardware video decode/encode on AMD and Intel through VA-API: Mesa's `radeonsi` for AMD,
+  Intel's `iHD` media driver (Broadwell and newer) and `i965` (older), with H.264/HEVC/AV1
+  where the GPU supports it. Check with `vainfo`. The build fails if any of these go missing
+- Brave, Dolphin, Konsole, Bazaar, Jellyfin Desktop, Finamp, and VLC pinned to the
+  taskbar (new accounts only)
 - Hot corners and the shake-to-locate-cursor effect disabled (new accounts only)
-- CachyOS kernel (BORE scheduler); LTS variant published separately
-- CachyOS tuning: sysctl, zram, I/O schedulers, `ntsync`; sched-ext schedulers on Gaming (see [CachyOS tuning](#cachyos-tuning))
+- Stock Fedora kernel: works with Secure Boot and on any x86_64 CPU
+- CachyOS tuning: sysctl, zram, I/O schedulers, `ntsync` (see [CachyOS tuning](#cachyos-tuning))
 - Baloo file indexing off by default, so the first login doesn't index the whole disk.
   KRunner still finds apps and file names; Dolphin's search inside file contents needs it.
   Turn it on in System Settings → Search → File Search, or `balooctl6 enable`
 - `dnf` disabled on the installed system (see [Installing software](#installing-software))
-- Auto-updates off — update manually with `topgrade` (Gaming and Media PC
-  update themselves, see [Auto-updates](#auto-updates))
-- `/etc/os-release` names the image and build, e.g. `X27-Linux 45 Gaming (2026-09-22)`
+- Updates itself, see [Auto-updates](#auto-updates)
+- `/etc/os-release` names the image and build, e.g. `X27-Linux 45 (2026-09-22)`
 
 ## Install
 
 **Fresh machine:**
-you can get the ISO file on [archive.org](https://archive.org/details/x27-linux).
-For the other images, run the `build-iso` workflow (Actions → build-iso → Run
-workflow), pick the image, and download the ISO from the run's artifacts, or
-[build it locally](#build-iso-locally).
+you can get the ISO file on [archive.org](https://archive.org/details/x27-linux), or
+run the `build-iso` workflow (Actions → build-iso → Run workflow) and download the
+ISO from the run's artifacts, or [build it locally](#build-iso-locally).
 
 **Already on Fedora Kinoite:** rebase onto this image.
 
@@ -63,12 +63,6 @@ sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/gamerx27/x27-linux:4
 systemctl reboot
 ```
 
-Swap `x27-linux` for `x27-linux-lts` (LTS kernel), `x27-linux-gaming`
-(Steam/gaming, see below), `x27-linux-desktop` (daily use, see below), or
-`x27-linux-media-pc` (media center, see below) in
-the commands above. Rebasing a KDE install onto Media PC removes Plasma; your
-account then boots into X27 TV.
-
 ### Image tags
 
 - `:45` — follows Fedora 45, rebuilt weekly. Use this one.
@@ -76,7 +70,7 @@ account then boots into X27 TV.
 - `:latest` — the newest build, whatever Fedora version that is.
 
 **Upgrading from Fedora 44:** `:44` is no longer rebuilt. Systems following it
-move to `:45` with one rebase (swap in your image name), then a reboot:
+move to `:45` with one rebase, then a reboot:
 
 ```
 sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/gamerx27/x27-linux:45
@@ -84,6 +78,32 @@ systemctl reboot
 ```
 
 Systems on `:latest` move to 45 by themselves.
+
+## Migrating from the other images
+
+`x27-linux-lts`, `x27-linux-gaming`, `x27-linux-desktop`, and `x27-linux-media-pc`
+are no longer rebuilt. Move to `x27-linux` with one rebase, then a reboot:
+
+```
+sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/gamerx27/x27-linux:45
+systemctl reboot
+```
+
+- **Gaming and Desktop** lose their extras (Steam, Heroic, Faugus, the sched-ext
+  schedulers; Zed, Docker, Netbird, and the extra Flatpaks). Already-installed
+  Flatpaks stay.
+- **All of them** move from the CachyOS kernel to the stock Fedora kernel. If you
+  turned off Secure Boot only for the CachyOS kernel, you can turn it back on.
+- **Media PC** (X27 TV) goes back to a KDE Plasma desktop with an SDDM login. Its
+  installer set the default boot target to text mode, since there was no display
+  manager, so switch it back **before** rebooting into the new image:
+
+  ```
+  sudo systemctl set-default graphical.target
+  ```
+
+  Then log in to Plasma and follow [First login after rebasing](#first-login-after-rebasing).
+  VacuumTube and LocalSend stay installed; remove them in Bazaar if you don't want them.
 
 ## Installing software
 
@@ -94,29 +114,22 @@ on every update, so anything installed with it wouldn't stick.
 - CLI and dev tools: `distrobox create && distrobox enter`, then use `dnf`
   inside the container
 - System packages: `sudo rpm-ostree install <package>`, then reboot
-- Updates: `topgrade`
 
 ## Update
+
+### Auto-updates
+
+New image builds download in the background (`rpm-ostreed-automatic.timer`,
+policy `stage`) and are used on the next reboot; the system never reboots by
+itself. System Flatpaks update daily (`x27-flatpak-update.timer`).
+
+To update everything right away (image, Flatpaks, and the rest), run:
 
 ```
 topgrade
 ```
 
-Updates the system image, Flatpaks, and everything else in one command.
-Nothing updates on its own — you always run this yourself. Gaming and Media PC
-are the exception:
-
-### Auto-updates
-
-Gaming and Media PC download new image builds in the background
-(`rpm-ostreed-automatic.timer`, policy `stage`) and switch to them on the next
-reboot; they never reboot by themselves. System Flatpaks update daily
-(`x27-flatpak-update.timer`). There's no weekly topgrade reminder on these two.
-On Media PC, X27 TV also checks once a day while it runs (covering the Flatpaks it
-installs per user) and has **Settings → Software Update**: the installed build, **Check
-for Updates**, and **Restart to Install** once one is downloaded, which also shows up in
-the Control Center.
-To turn it off:
+To turn auto-updates off:
 
 ```
 sudo systemctl disable --now rpm-ostreed-automatic.timer x27-flatpak-update.timer
@@ -149,109 +162,36 @@ sudo flatpak remote-modify --disable fedora fedora-testing
 
 ## Kernel
 
-`x27-linux` and `x27-linux-gaming` ship the
-[CachyOS kernel](https://copr.fedorainfracloud.org/coprs/bieszczaders/kernel-cachyos/)
-(BORE scheduler); `x27-linux-lts` and `x27-linux-media-pc` ship its LTS variant
-instead. All replace the stock Fedora kernel.
-
-- **Needs an x86_64-v3 CPU** (Zen-family AMD, Haswell+ Intel). Older CPUs
-  won't boot it. Check with:
-  `/lib64/ld-linux-x86-64.so.2 --help | grep "(supported, searched)"`
-- **Unsigned.** Turn off Secure Boot, or sign it yourself with
-  `sbsigntools`/`mokutil` (both included).
+The stock Fedora kernel, signed by Fedora, so Secure Boot works. Earlier builds
+shipped the CachyOS kernel instead.
 
 ## CachyOS tuning
 
-All images include packages from the
+`cachyos-settings` from the
 [kernel-cachyos-addons](https://copr.fedorainfracloud.org/coprs/bieszczaders/kernel-cachyos-addons/)
-COPR:
-
-- `cachyos-settings`: CachyOS sysctl, zram (zstd, sized to RAM), udev I/O
-  scheduler rules, `ntsync`, and the `game-performance`, `zink-run`, and
-  `kerver` commands
-- Gaming only: `scx-scheds` and `scx-tools`: sched-ext schedulers, `scxctl`, `scxtui`
-
-The other images don't include the sched-ext schedulers; BORE from the kernel
-handles scheduling there.
-
-## Gaming variant
-
-Everything above, plus:
-
-- Steam, GameMode, Gamescope, MangoHud, GOverlay
-- Faugus Launcher, Heroic Games Launcher (latest GitHub release, updated with each weekly build)
-- Full GStreamer codecs (bad, ugly, openh264) on top of the base image's codecs,
-  and 32-bit Mesa/libva matching the 64-bit drivers, all from negativo17
-- Desktop animations off (animation speed set to Instant)
-- `proton-cachyos-install` — run it yourself to install or update
-  [Proton-CachyOS](https://github.com/CachyOS/proton-cachyos) into Steam
-- Steam, Dolphin, Konsole, Brave, and Bazaar pinned to the taskbar (new accounts only)
-- `scx_lavd` sched-ext scheduler in Gaming mode, running by default. Switch
-  with scx-manager or `scxctl switch -s <scheduler>`; turn it off with
-  `sudo systemctl disable --now scx_loader`
-- ananicy-cpp with CachyOS rules. If games stutter, try turning this off
-  first: `sudo systemctl disable --now ananicy-cpp`
-- power-profiles-daemon instead of tuned-ppd, so `game-performance` works.
-  In Steam, set a game's launch options to `game-performance %command%` to
-  use the performance power profile while it runs
-- Updates itself, see [Auto-updates](#auto-updates)
-
-## Desktop variant
-
-Everything in the base image, plus:
-
-- Zed editor (native, not Flatpak, so its terminal and agents run on the host;
-  updated with each weekly build). Its own updater and the sign-in button are off
-- Docker, with `docker.service` enabled. Add yourself to the `docker` group
-  once, then log out and back in: `sudo usermod -aG docker $USER`
-- Netbird client and tray app, with `netbird.service` enabled
-- GNOME Disks
-- Flatpaks: Vivaldi, LibreWolf, Chromium, Tor Browser Launcher, Nextcloud,
-  Cryptomator, Bitwarden, LocalSend, SyncThingy, Jellyfin Desktop, Finamp,
-  Iotas, sshPilot, Web App Hub, Mission Center, Gwenview
-
-## Media PC variant
-
-No desktop: Fedora Atomic (`fedora-base`) with
-[X27 TV](x27-tv/), an Apple TV–style launcher in a labwc kiosk session, driven by
-gamepad, TV remote, or keyboard. Its source lives in [x27-tv/](x27-tv/) and is built into
-the image from there, so a change to it rebuilds the images like one to `recipes/` or `files/`.
-
-- Boots straight into X27 TV: the first normal user (the account made during install) is
-  logged in on tty1, with no display manager. Without such an account, tty1 shows the
-  normal text login. **Exit to Console** in the Control Center goes to that login too
-- Home row: VacuumTube, Jellyfin Desktop, Finamp, VLC, LocalSend (Flatpaks; the ISO
-  carries and installs all five offline, from `flatpak_refs-media-pc/`, and rebased systems
-  get any missing ones on first boot), plus Patreon, Odysee, and Brave. Customize it in
-  `~/.config/x27-tv/apps.toml` (copy `/usr/share/x27-tv/config/apps.toml`)
-- Inside an app, press the gamepad's Guide button (or the remote's Home key) for the Quick
-  Menu, with the app paused behind it: Home, Exit App, volume, audio output, Gamepad as
-  Mouse, Settings, Sleep
-- Logs: `journalctl -u x27-tv` for the session, `~/.cache/x27-tv/logs/` per app
-- Also from the base image: Brave, fish, htop, nvtop, nano, distrobox,
-  topgrade, codecs and hardware video decode, the CachyOS tuning
-- LTS kernel (see above)
-- Updates itself, see [Auto-updates](#auto-updates)
+COPR: CachyOS sysctl, zram (zstd, sized to RAM), udev I/O scheduler rules,
+`ntsync`, and the `game-performance`, `zink-run`, and `kerver` commands. These
+work on the stock kernel; there are no sched-ext schedulers.
 
 ## Build
 
 Pushes to `main` build and publish automatically via GitHub Actions, which
-also rebuilds weekly to pick up upstream Kinoite/Brave/kernel updates.
+also rebuilds weekly to pick up upstream Kinoite, Brave, kernel, and codec updates.
 CI runs on GitHub only; Actions is turned off on the Forgejo mirror
 (git.xlabsx27.com).
 
 ## Releases
 
 Every image build publishes a [GitHub Release](../../releases) that lists what changed: key
-versions (kernels, Plasma, Mesa, Brave, ...), repo commits, and the packages updated, added
-or removed in each image. The package lists are attached to each release.
+versions (kernel, Plasma, Mesa, Brave, ...), repo commits, and the packages updated, added
+or removed. The package list is attached to each release.
 
 - `vYYYY.MM.DD` (e.g. `v2026.09.27`): the weekly rebuild
 - `vYYYY.MM.DD.N` (e.g. `v2026.09.24.1`): minor releases for changes pushed in between
 
 ## Build ISO locally
 
-Generates an installer ISO from the already-published `ghcr.io/gamerx27`
+Generates an installer ISO from the already-published `ghcr.io/gamerx27/x27-linux`
 image, the same approach as the CI [`iso.yml`](.github/workflows/iso.yml)
 workflow — nothing is built from local recipes, so this needs a network
 connection to GHCR.
@@ -260,20 +200,17 @@ connection to GHCR.
 - docker
 - sudo access
 - ~20GB free disk (image pull + ISO — past ISOs have run ~6.5GB)
-- x86_64-v3 CPU to boot the resulting image (see [Kernel](#kernel) above)
 
 ```
-./scripts/build-iso.sh [--usb] [--tag TAG] [base|lts|gaming|desktop|media-pc]
+./scripts/build-iso.sh [--usb] [--tag TAG]
 ```
 
-Defaults to `base` if no argument is given. Runs
-[build-container-installer](https://github.com/JasonN3/build-container-installer)
-v1.5.0 in docker. Output goes to `iso-out/` at the repo root: `<name>.iso` and
-`<name>.iso.sha256sum`. The image pulled from GHCR is removed again when the script
+Runs [build-container-installer](https://github.com/JasonN3/build-container-installer)
+v1.5.0 in docker. Output goes to `iso-out/` at the repo root: `x27-linux.iso` and
+`x27-linux.iso.sha256sum`. The image pulled from GHCR is removed again when the script
 exits, unless it was already on the system.
 
-Each run first empties `iso-out/`, removing the ISOs of every image, not just the
-one being built.
+Each run first empties `iso-out/`.
 
 `--tag` picks the image tag the ISO installs, and the installed system keeps
 following it on updates: `45`, `latest`, or a dated tag (see [Image tags](#image-tags)).

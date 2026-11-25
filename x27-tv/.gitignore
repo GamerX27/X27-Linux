@@ -1,6 +1,0 @@
-# Python bytecode and local editor/OS clutter.
-__pycache__/
-*.pyc
-.vscode/
-.idea/
-.DS_Store

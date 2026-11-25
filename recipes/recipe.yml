@@ -2,17 +2,20 @@
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
 
 name: x27-linux
-description: X27-Linux - custom Fedora Kinoite with X27 config, KDE tweaks, and Brave Origin
+description: X27-Linux - custom Fedora Kinoite with X27 config, KDE tweaks, Brave Origin, full codecs, and native Jellyfin Desktop, Finamp, and VLC
 base-image: ghcr.io/blue-build/base-images/fedora-kinoite
 image-version: 45
 
 modules:
-  # system config, plus the base taskbar overlay: Brave/Dolphin/Konsole pins.
+  # system config, plus the base taskbar overlay (Brave, Dolphin, Konsole, Bazaar, and the
+  # media apps). auto-update sets rpm-ostreed's AutomaticUpdatePolicy to stage.
   - type: files
     files:
       - source: system
         destination: /
       - source: base
+        destination: /
+      - source: auto-update
         destination: /
 
   # bootc image: package changes happen via dnf in the build container, not rpm-ostree.
@@ -22,7 +25,12 @@ modules:
   # sandboxed, where syncing the system Flathub remote fails, and could start before the network
   # was up and stay empty. krunner-bazaar puts its search results in KRunner. ublue-os/packages
   # also carries libadwaita/glycin builds; installed ones aren't swapped by an install, and
-  # cleanup disables all three repos again afterwards.
+  # cleanup disables all the repos again afterwards.
+  # Media apps, all native: VLC is Fedora's own build, running on the base image's negativo17
+  # ffmpeg. Finamp and Jellyfin Desktop come from X27-Linux-Packages (git.xlabsx27.com); its
+  # .repo brings both keys (packages and repo index). Finamp repackages upstream's Linux bundle;
+  # Jellyfin Desktop is built there from upstream's source against Fedora's Qt WebEngine and
+  # mpv, with libcec for TV remotes over HDMI-CEC (upstream has no Fedora build).
   # Removed with nothing requiring them: python3-boto3 & co. (AWS SDK from the Kinoite base)
   # and plasma-workspace-wallpapers (~300 MB of extra wallpapers; the defaults, Next and
   # Fedora, come from plasma-breeze-common and kde-settings).
@@ -30,6 +38,7 @@ modules:
     repos:
       files:
         - https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
+        - https://git.xlabsx27.com/X27/X27-Linux-Packages/raw/branch/main/x27-packages.repo
       keys:
         - https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
       copr:
@@ -52,8 +61,11 @@ modules:
         - topgrade
         - bazaar
         - krunner-bazaar
-        - sbsigntools
-        - mokutil
+        - vlc
+        - vlc-plugin-ffmpeg
+        - finamp
+        - jellyfin-desktop
+        - virtualbox-guest-additions
     remove:
       packages:
         - firefox
@@ -74,14 +86,14 @@ modules:
         - python3-s3transfer
         - plasma-workspace-wallpapers
 
-  # The ISO embeds VLC (flatpak_refs/) and installs it offline; BlueBuild empties /var, so it
-  # can't ship in the image itself. This installs these on first boot for systems that rebased
-  # instead. Bazaar is an RPM now (below); the remove list uninstalls the old Flatpak.
+  # The ISO embeds these (flatpak_refs/) and installs them offline; BlueBuild empties /var, so
+  # they can't ship in the image itself. This installs them on first boot for systems that
+  # rebased instead. Bazaar, VLC, Finamp, and Jellyfin Desktop are RPMs now (above); the remove
+  # list uninstalls their old Flatpaks.
   - type: default-flatpaks@v1
     notify: true
     system:
       install:
-        - org.videolan.VLC
         - org.kde.kate
         - org.kde.kwrite
         - org.kde.filelight
@@ -90,56 +102,74 @@ modules:
         - com.github.wwmm.easyeffects
       remove:
         - io.github.kolunmi.Bazaar
+        - org.videolan.VLC
+        - com.unicornsonlsd.finamp
+        - org.jellyfin.JellyfinDesktop
 
-  # Masks the base image's background auto-update timer; topgrade-reminder.timer
-  # (files/systemd/user/) nudges weekly instead. x27-install-date.service
-  # (files/systemd/system/) stamps /var/lib/x27-linux/install-date on first boot only,
-  # for fastfetch's OS Age - /var persists across updates, unlike /etc or /usr.
+  # Auto-updates: the image is staged in the background and used on the next reboot, and
+  # Flatpaks update daily. bootc-fetch-apply-updates.timer stays masked since it reboots.
+  # The Kinoite base masks rpm-ostreed-automatic.timer, and this module enables before it
+  # unmasks, so the unmask is its own module first.
+  - type: systemd
+    system:
+      unmasked:
+        - rpm-ostreed-automatic.timer
+
+  # x27-install-date.service (files/systemd/system/) stamps /var/lib/x27-linux/install-date on
+  # first boot only, for fastfetch's OS Age - /var persists across updates, unlike /etc or /usr.
+  # topgrade-reminder.timer (files/systemd/user/) stays off: updates happen on their own.
   - type: systemd
     system:
       enabled:
         - x27-install-date.service
         - x27-flathub-metadata.service
+        - rpm-ostreed-automatic.timer
+        - x27-flatpak-update.timer
       masked:
         - bootc-fetch-apply-updates.timer
         # Refreshes dnf metadata in the background, but dnf is guarded (x27-dnf-guard) and
         # updates go through rpm-ostree. dnf5-makecache.timer is an alias of it.
         - dnf-makecache.timer
-    user:
-      enabled:
-        - topgrade-reminder.timer
 
-  # CachyOS kernel (BORE scheduler), needs an x86_64-v3 CPU.
-  # kernel-cachyos Provides: kernel, so the stock kernel is removed first (installing the
-  # new one first would remove it right back out). noscripts skips the RPM's post-install
-  # kernel-install/dracut hook, which fails before depmod has run - depmod runs manually below.
-  # Without -devel-matched: that pulls in gcc, make and kernel headers (~350 MB), and nothing
-  # here builds modules (no akmods/dkms, /usr is read-only).
+  # Stock Fedora kernel, so Secure Boot works and any x86_64 CPU boots it.
+  #
+  # Codecs and hardware video acceleration. The BlueBuild base image already brings
+  # negativo17's ffmpeg (x264, x265, fdk-aac), Mesa with VA-API for AMD (radeonsi), and Intel's
+  # VA-API drivers (iHD for Broadwell and newer, i965 for older), then removes the repo again.
+  # GStreamer is still Fedora's -free plugins there, so the full bad/ugly plugins come from
+  # negativo17 here (--allowerasing lets them replace the -free builds), and Cisco's real
+  # openh264 replaces the noopenh264 stub. The negativo17 repo file is removed again; the
+  # Cisco repo stays enabled, as on stock Fedora, so openh264 keeps updating.
+  # The checks fail the build if any codec or VA-API driver goes missing.
   - type: containerfile
     snippets:
       - |
         RUN set -eu \
-            && dnf5 -y copr enable bieszczaders/kernel-cachyos \
-            && STOCK_KVER="$(rpm -q --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -n1)" \
-            && echo "Removing Fedora kernel ${STOCK_KVER}" \
-            && dnf5 -y remove --no-autoremove \
-                 kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra \
-            && rm -rf "/usr/lib/modules/${STOCK_KVER}" \
-            && dnf5 -y install --setopt=tsflags=noscripts kernel-cachyos \
-            && dnf5 -y install --skip-unavailable virtualbox-guest-additions \
-            && dnf5 -y copr disable bieszczaders/kernel-cachyos \
+            && curl -fsSL -o /etc/yum.repos.d/negativo17-fedora-multimedia.repo \
+                 https://negativo17.org/repos/fedora-multimedia.repo \
+            && dnf5 -y config-manager setopt fedora-cisco-openh264.enabled=1 \
+            && dnf5 -y swap noopenh264 openh264 \
+            && dnf5 -y install --allowerasing \
+                 gstreamer1-plugins-bad gstreamer1-plugins-ugly gstreamer1-plugin-openh264 \
+            && rm /etc/yum.repos.d/negativo17-fedora-multimedia.repo \
             && dnf5 clean all \
-            && test "$(ls -1 /usr/lib/modules | wc -l)" -eq 1 \
-            && KVER="$(ls -1 /usr/lib/modules)" \
-            && test -f "/usr/lib/modules/${KVER}/vmlinuz" \
-            && depmod -a "${KVER}" \
-            && test -f "/usr/lib/modules/${KVER}/modules.dep" \
-            && echo "Kernel now: ${KVER}"
+            && rpm -q libavcodec libfdk-aac x264-libs x265-libs openh264 \
+                 gstreamer1-plugins-bad gstreamer1-plugins-ugly gstreamer1-plugin-openh264 \
+                 gstreamer1-plugin-libav libva libva-intel-media-driver intel-vaapi-driver libva-utils \
+            && for pkg in libavcodec-free noopenh264 gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free; do \
+                 if rpm -q "$pkg" >/dev/null; then echo "still installed: ${pkg}" >&2; exit 1; fi; \
+               done \
+            && test "$(rpm -q --qf '%{VENDOR}' libavcodec)" = negativo17.org \
+            && for drv in radeonsi iHD i965; do \
+                 test -f "/usr/lib64/dri/${drv}_drv_video.so" || { echo "missing VA-API driver: ${drv}" >&2; exit 1; }; \
+               done \
+            && rpm -q kernel-core \
+            && ! rpm -qa | grep -q '^kernel-cachyos'
 
   # CachyOS userspace tuning from bieszczaders/kernel-cachyos-addons: cachyos-settings (sysctl,
   # zram, udev, ntsync). cachyos-settings Conflicts with zram-generator-defaults, hence the
-  # swap. Before initramfs: it adds modprobe.d/udev rules. The sched-ext schedulers are
-  # Gaming-only (recipe-gaming.yml); BORE from the kernel stays in charge here.
+  # swap. Before initramfs: it adds modprobe.d/udev rules. Works on the stock kernel; no
+  # sched-ext schedulers.
   - type: containerfile
     snippets:
       - |
@@ -152,7 +182,8 @@ modules:
         RUN plymouth-set-default-theme bgrt \
             && test "$(plymouth-set-default-theme)" = bgrt
 
-  # Regenerates initramfs to pick up the kernel swap above. Must run after it.
+  # Regenerates initramfs to pick up cachyos-settings' modprobe.d/udev rules and the plymouth
+  # theme above. Must run after them.
   - type: initramfs
 
   # Sanity check: files/base's layout.js pins these desktop files in the taskbar.
@@ -162,24 +193,19 @@ modules:
         RUN test -f /usr/share/applications/brave-origin.desktop \
             && test -f /usr/share/applications/org.kde.dolphin.desktop \
             && test -f /usr/share/applications/org.kde.konsole.desktop \
-            && test -f /usr/share/applications/io.github.kolunmi.Bazaar.desktop
+            && test -f /usr/share/applications/io.github.kolunmi.Bazaar.desktop \
+            && test -f /usr/share/applications/vlc.desktop \
+            && test -f /usr/share/applications/com.unicornsonlsd.finamp.desktop \
+            && test -f /usr/share/applications/org.jellyfin.JellyfinDesktop.desktop \
+            && rpm -q vlc vlc-plugin-ffmpeg finamp jellyfin-desktop
 
-  # make_brave_great_again.sh's /etc/hosts step always fails here (buildah bind-mounts it
-  # read-only during RUN) and is ignored; the policy file it writes is verified explicitly instead.
+  # Brave Origin stays stock: no make_brave_great_again.sh. x-linuxtool is still included.
   - type: containerfile
     snippets:
       - |
         RUN curl -fsSL -o /usr/bin/x-linuxtool \
               https://codeberg.org/X27/X-Linuxtool/raw/branch/main/X-Linuxtool.sh \
             && chmod +x /usr/bin/x-linuxtool
-      - |
-        RUN set -eu; \
-            curl -fsSL -o /tmp/make_brave_great_again.sh \
-              https://codeberg.org/X27/X-Linuxtool/raw/branch/main/Desktop/Linux-Desktop/Browser/make_brave_great_again.sh; \
-            chmod +x /tmp/make_brave_great_again.sh; \
-            /tmp/make_brave_great_again.sh || true; \
-            test -f /etc/brave/policies/managed/make_brave_great_again.json; \
-            rm -f /tmp/make_brave_great_again.sh
       # localectl normally talks to systemd-localed over D-Bus; whether that's reachable
       # in this build step (no PID 1 systemd) is unverified here, so the sed/echo fallback
       # below (the previous approach) only fires if set_locale_time doesn't take.

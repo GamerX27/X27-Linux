@@ -26,12 +26,11 @@ jobs:
           registry_token: ${{ github.token }}
           pr_event_number: ${{ github.event.number }}
 
-      # Package list for build.yml's release job (scripts/release-notes.sh), so it doesn't
-      # pull all five images one after another. The action builds with buildx's
-      # docker-container driver, which leaves no local image, so the image just pushed is
-      # pulled here, in parallel with the other images' jobs. The build cache goes first to
-      # make room. PR builds aren't released, so they skip this. Not fatal: without the
-      # artifact, release-notes.sh pulls the image itself.
+      # Package list for build.yml's release job (scripts/release-notes.sh). The action
+      # builds with buildx's docker-container driver, which leaves no local image, so the
+      # image just pushed is pulled here. The build cache goes first to make room. PR builds
+      # aren't released, so they skip this. Not fatal: without the artifact,
+      # release-notes.sh pulls the image itself.
       - name: Package list
         if: github.event_name != 'pull_request'
         continue-on-error: true

@@ -6,7 +6,6 @@ on:
     paths:
       - "recipes/**"
       - "files/**"
-      - "x27-tv/**"
       - "cosign.pub"
       - ".github/workflows/build.yml"
       - ".github/workflows/build-image.yml"
@@ -17,37 +16,17 @@ on:
     paths:
       - "recipes/**"
       - "files/**"
-      - "x27-tv/**"
       - "cosign.pub"
       - ".github/workflows/build.yml"
       - ".github/workflows/build-image.yml"
       - "scripts/release-notes.sh"
   workflow_dispatch:
-    inputs:
-      recipe:
-        description: "Recipe to build (all runs the full matrix)"
-        required: false
-        default: all
-        type: choice
-        options:
-          - all
-          - recipe.yml
-          - recipe-lts.yml
-          - recipe-gaming.yml
-          - recipe-media-pc.yml
-          - recipe-desktop.yml
 
-# Gaming and Desktop build FROM x27-linux, so each waits for it. Media PC has its own base
-# (fedora-base) and builds alongside main and lts.
-# A variant still runs if its base was skipped (dispatching only that variant) and then
-# builds on the last published base. PR builds don't push, so PR variants do the same.
-# Every job is gated on github.server_url so the Forgejo mirror (git.xlabsx27.com), whose
-# Actions also read .github/workflows, skips them; they only run on GitHub.
+# Gated on github.server_url so the Forgejo mirror (git.xlabsx27.com), whose Actions also read
+# .github/workflows, skips it; it only runs on GitHub.
 jobs:
   main:
-    if: >-
-      github.server_url == 'https://github.com'
-      && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe.yml"]'), inputs.recipe))
+    if: github.server_url == 'https://github.com'
     uses: ./.github/workflows/build-image.yml
     with:
       recipe: recipe.yml
@@ -57,71 +36,11 @@ jobs:
       packages: write
       id-token: write
 
-  lts:
-    if: >-
-      github.server_url == 'https://github.com'
-      && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe-lts.yml"]'), inputs.recipe))
-    uses: ./.github/workflows/build-image.yml
-    with:
-      recipe: recipe-lts.yml
-    secrets: inherit
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-
-  gaming:
-    needs: main
-    if: >-
-      always() && github.server_url == 'https://github.com' && contains(fromJSON('["success","skipped"]'), needs.main.result)
-      && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe-gaming.yml"]'), inputs.recipe))
-    uses: ./.github/workflows/build-image.yml
-    with:
-      recipe: recipe-gaming.yml
-    secrets: inherit
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-
-  desktop:
-    needs: main
-    if: >-
-      always() && github.server_url == 'https://github.com' && contains(fromJSON('["success","skipped"]'), needs.main.result)
-      && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe-desktop.yml"]'), inputs.recipe))
-    uses: ./.github/workflows/build-image.yml
-    with:
-      recipe: recipe-desktop.yml
-    secrets: inherit
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-
-  media-pc:
-    if: >-
-      github.server_url == 'https://github.com'
-      && (github.event_name != 'workflow_dispatch' || contains(fromJSON('["all","recipe-media-pc.yml"]'), inputs.recipe))
-    uses: ./.github/workflows/build-image.yml
-    with:
-      recipe: recipe-media-pc.yml
-    secrets: inherit
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-
   # A GitHub Release per build, with what changed (scripts/release-notes.sh). The weekly
   # scheduled build is vYYYY.MM.DD; pushes and dispatches are minor releases vYYYY.MM.DD.N.
-  # Runs when no image build failed; a single-recipe dispatch skips the other images, which
-  # the notes then take from their last published :45.
   release:
-    needs: [main, lts, gaming, desktop, media-pc]
-    if: >-
-      always() && github.server_url == 'https://github.com' && github.event_name != 'pull_request'
-      && contains(needs.*.result, 'success')
-      && !contains(needs.*.result, 'failure')
-      && !contains(needs.*.result, 'cancelled')
+    needs: main
+    if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     concurrency:
       group: release
@@ -135,8 +54,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Package lists from this run's build jobs (build-image.yml). Images skipped in a
-      # single-recipe dispatch have none; release-notes.sh pulls those itself.
+      # Package list from this run's build job (build-image.yml). Without it,
+      # release-notes.sh pulls the image itself.
       - name: Download package lists
         uses: actions/download-artifact@v5
         continue-on-error: true
