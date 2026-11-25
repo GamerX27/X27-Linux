@@ -138,8 +138,10 @@ modules:
   # VA-API drivers (iHD for Broadwell and newer, i965 for older), then removes the repo again.
   # GStreamer is still Fedora's -free plugins there, so the full bad/ugly plugins come from
   # negativo17 here (--allowerasing lets them replace the -free builds), and Cisco's real
-  # openh264 replaces the noopenh264 stub. The negativo17 repo file is removed again; the
-  # Cisco repo stays enabled, as on stock Fedora, so openh264 keeps updating.
+  # openh264 replaces the noopenh264 stub. negativo17's plugins-bad carries the openh264
+  # GStreamer plugin itself (it obsoletes gstreamer1-plugin-openh264), so that's checked by
+  # file. The negativo17 repo file is removed again; the Cisco repo stays enabled, as on
+  # stock Fedora, so openh264 keeps updating.
   # The checks fail the build if any codec or VA-API driver goes missing.
   - type: containerfile
     snippets:
@@ -149,16 +151,16 @@ modules:
                  https://negativo17.org/repos/fedora-multimedia.repo \
             && dnf5 -y config-manager setopt fedora-cisco-openh264.enabled=1 \
             && dnf5 -y swap noopenh264 openh264 \
-            && dnf5 -y install --allowerasing \
-                 gstreamer1-plugins-bad gstreamer1-plugins-ugly gstreamer1-plugin-openh264 \
+            && dnf5 -y install --allowerasing gstreamer1-plugins-bad gstreamer1-plugins-ugly \
             && rm /etc/yum.repos.d/negativo17-fedora-multimedia.repo \
             && dnf5 clean all \
             && rpm -q libavcodec libfdk-aac x264-libs x265-libs openh264 \
-                 gstreamer1-plugins-bad gstreamer1-plugins-ugly gstreamer1-plugin-openh264 \
-                 gstreamer1-plugin-libav libva libva-intel-media-driver intel-vaapi-driver libva-utils \
+                 gstreamer1-plugins-bad gstreamer1-plugins-ugly gstreamer1-plugin-libav \
+                 libva libva-intel-media-driver intel-vaapi-driver libva-utils \
             && for pkg in libavcodec-free noopenh264 gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free; do \
                  if rpm -q "$pkg" >/dev/null; then echo "still installed: ${pkg}" >&2; exit 1; fi; \
                done \
+            && test -f /usr/lib64/gstreamer-1.0/libgstopenh264.so \
             && test "$(rpm -q --qf '%{VENDOR}' libavcodec)" = negativo17.org \
             && for drv in radeonsi iHD i965; do \
                  test -f "/usr/lib64/dri/${drv}_drv_video.so" || { echo "missing VA-API driver: ${drv}" >&2; exit 1; }; \
