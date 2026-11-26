@@ -1,0 +1,7 @@
+# Look for cosign signatures on GHCR for this image. BlueBuild's signing module writes the same
+# config, but takes the registry name from the GitHub owner as-is (ghcr.io/GamerX27/...), and
+# containers matches it case-sensitively against the lowercase image reference, so updates
+# failed with "A signature was required, but no signature exists". GHCR names are lowercase.
+docker:
+  ghcr.io/gamerx27/x27-linux:
+    use-sigstore-attachments: true

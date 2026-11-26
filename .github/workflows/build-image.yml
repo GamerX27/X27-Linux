@@ -24,6 +24,10 @@ jobs:
           recipe: ${{ inputs.recipe }}
           cosign_private_key: ${{ secrets.SIGNING_SECRET }}
           registry_token: ${{ github.token }}
+          # Lowercase, like GHCR itself. The default is github.repository_owner (GamerX27),
+          # which BlueBuild's signing module writes as-is into the image's registries.d config;
+          # containers matches that case-sensitively, so installs couldn't find signatures.
+          registry_namespace: gamerx27
           pr_event_number: ${{ github.event.number }}
 
       # Package list for build.yml's release job (scripts/release-notes.sh). The action

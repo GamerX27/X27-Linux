@@ -99,6 +99,17 @@ systemctl reboot
 
 Fresh installs from a new ISO already have the new key.
 
+**"A signature was required, but no signature exists":** installs from builds made
+on November 25–26, 2026 have the signature lookup config only under the mixed-case
+name `ghcr.io/GamerX27/...`, which doesn't match. Add the lowercase one once, then
+update:
+
+```
+printf 'docker:\n  ghcr.io/gamerx27/x27-linux:\n    use-sigstore-attachments: true\n' \
+  | sudo tee /etc/containers/registries.d/gamerx27-x27-linux.yaml
+sudo rpm-ostree upgrade
+```
+
 ## Migrating from the other images
 
 `x27-linux-lts`, `x27-linux-gaming`, `x27-linux-desktop`, and `x27-linux-media-pc`
